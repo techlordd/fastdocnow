@@ -19,37 +19,7 @@ try {
     // Set up Pusher
     window.Pusher = Pusher;
 
-    // Try Reverb first, then fallback to Pusher
-    if (import.meta.env.VITE_REVERB_APP_KEY) {
-        window.Echo = new Echo({
-            broadcaster: 'reverb',
-            key: import.meta.env.VITE_REVERB_APP_KEY,
-            wsHost: import.meta.env.VITE_REVERB_HOST,
-            wsPort: import.meta.env.VITE_REVERB_PORT,
-            wssPort: import.meta.env.VITE_REVERB_PORT,
-            forceTLS: import.meta.env.VITE_REVERB_SCHEME === 'https',
-            enabledTransports: ['ws', 'wss'],
-            auth: {
-                headers: {
-                    Authorization: `Bearer ${document.querySelector('meta[name="api-token"]')?.getAttribute('content') || ''}`,
-                },
-            },
-        });
-
-        window.Echo.connector.pusher.connection.bind('state_change', (states) => {
-            console.log("Echo connection state change:", states.current);
-        });
-        window.Echo.connector.pusher.connection.bind('connected', () => {
-            console.log("Echo connected!");
-        });
-        window.Echo.connector.pusher.connection.bind('disconnected', () => {
-            console.log("Echo disconnected!");
-        });
-        window.Echo.connector.pusher.connection.bind('error', (err) => {
-            console.error("Echo connection error:", err);
-        });
-
-    } else if (import.meta.env.VITE_PUSHER_APP_KEY) {
+    if (import.meta.env.VITE_PUSHER_APP_KEY) {
         window.Echo = new Echo({
             broadcaster: 'pusher',
             key: import.meta.env.VITE_PUSHER_APP_KEY,
