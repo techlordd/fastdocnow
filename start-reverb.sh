@@ -1,13 +1,29 @@
 #!/bin/bash
 
-echo "🔧 Fixing Reverb configuration..."
+# Start Reverb server for local development
+echo "🚀 Starting Reverb WebSocket server..."
 
-# Clear configuration cache
-php artisan config:clear
+# Check if .env exists
+if [ ! -f .env ]; then
+    echo "❌ .env file not found. Please create one from .env.example"
+    exit 1
+fi
 
-echo "🚀 Starting Reverb server..."
+# Load environment variables
+source .env
 
-# Start Reverb with explicit configuration
-php artisan reverb:start --host=127.0.0.1 --port=8080
+# Check if PHP is available
+if ! command -v php &> /dev/null; then
+    echo "❌ PHP is not installed or not in PATH"
+    exit 1
+fi
 
-echo "✅ Reverb should now be running on 127.0.0.1:8080"
+# Check if Laravel is installed
+if [ ! -f artisan ]; then
+    echo "❌ Laravel artisan file not found. Please run 'composer install' first"
+    exit 1
+fi
+
+# Start Reverb
+echo "✅ Starting Reverb on port ${REVERB_PORT:-8080}..."
+php artisan reverb:start --host=0.0.0.0 --port=${REVERB_PORT:-8080}

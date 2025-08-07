@@ -4,7 +4,14 @@
     "scripts": {
         "dev": "vite",
         "build": "vite build",
-        "watch": "vite build --watch"
+        "watch": "vite build --watch",
+        "start-reverb": "php artisan reverb:start",
+        "queue": "php artisan queue:work",
+        "queue:listen": "php artisan queue:listen",
+        "migrate": "php artisan migrate",
+        "seed": "php artisan db:seed",
+        "setup": "npm install && composer install && php artisan migrate --seed",
+        "vercel-build": "npm run build && composer install --optimize-autoloader --no-dev"
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.7",
@@ -12,7 +19,6 @@
         "alpinejs": "^3.13.3",
         "autoprefixer": "^10.4.16",
         "axios": "^1.6.2",
-
         "laravel-vite-plugin": "^1.0.0",
         "postcss": "^8.4.32",
         "tailwindcss": "^3.3.6",
