@@ -1,2 +1,2 @@
-# fastdocnow.com
+# fastDocNow.com
 Doc Chatting App

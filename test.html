@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="DocNow Chat Interface">
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/192x192/6600ff/ffffff?text=DocNow">
+    <meta name="theme-color" content="#6600ff">
+    <link rel="icon" type="image/png" sizes="16x16" href="https://via.placeholder.com/16x16/6600ff/ffffff?text=H">
+    <title>DocNow | Chat Interface</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Fancybox CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+
+        .main-chat-wrapper {
+            height: 100vh;
+            background: #fff;
+        }
+
+        .chat-screen {
+            display: flex;
+            height: 100vh;
+        }
+
+        .chat-sidebar {
+            width: 320px;
+            background: white;
+            border-right: 1px solid #e9ecef;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .chat-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #333;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .back-btn {
+            min-width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            color: #00bc8c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3px 5px;
+            transition: all 0.3s ease-in-out;
+            text-decoration: none;
+        }
+
+        .back-btn:hover {
+            color: #ffffff;
+            background-color: #00bc8c;
+        }
+
+        .back-btn span {
+            width: 0;
+            overflow: hidden;
+            font-size: 12px;
+            transition: width 0.3s ease;
+        }
+
+        .back-btn:hover span {
+            width: 33px;
+        }
+
+        .new-message-btn {
+            background: #6600ff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin-left: auto;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .new-message-btn:hover {
+            background: #5500dd;
+        }
+
+        .chat-filters {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .filter-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .filter-btn {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #007bff;
+            background: white;
+            color: #007bff;
+            border-radius: 4px;
+            font-size: 12px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .filter-btn.active,
+        .filter-btn:hover {
+            background: #007bff;
+            color: white;
+        }
+
+        .search-section {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .chat-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .chat-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            text-decoration: none;
+            color: inherit;
+            transition: background-color 0.3s ease;
+        }
+
+        .chat-item:hover,
+        .chat-item.active {
+            background-color: #f8f9fa;
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .chat-avatar {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            margin-right: 12px;
+        }
+
+        .chat-info {
+            flex: 1;
+        }
+
+        .chat-name {
+            font-weight: 600;
+            font-size: 14px;
+            margin: 0 0 4px 0;
+        }
+
+        .chat-status {
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .chat-time {
+            text-align: right;
+        }
+
+        .chat-time h4 {
+            font-size: 12px;
+            margin: 0;
+            color: #666;
+        }
+
+        .chat-time small {
+            font-size: 10px;
+            color: #999;
+        }
+
+        .chat-content {
+            flex: 1;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chat-conversation-header {
+            padding: 20px;
+            border-bottom: 1px solid #e9ecef;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .conversation-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+        }
+
+        .conversation-info h3 {
+            margin: 0;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .conversation-info p {
+            margin: 0;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message-group {
+            margin-bottom: 20px;
+        }
+
+        .message {
+            background: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            max-width: 70%;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .message.sent {
+            background: #007bff;
+            color: white;
+            margin-left: auto;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .message.sent .message-time {
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .audio-player {
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            max-width: 300px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .play-btn {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #007bff;
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .audio-progress {
+            flex: 1;
+            height: 4px;
+            background: #e9ecef;
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .audio-progress-bar {
+            height: 100%;
+            background: #007bff;
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.1s ease;
+        }
+
+        .audio-time {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .image-viewer {
+            max-width: 200px;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .image-viewer img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .file-attachment {
+            background: white;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            max-width: 250px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-size: 14px;
+            color: #333;
+            margin: 0;
+        }
+
+        .file-size {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .message-input-area {
+            padding: 20px;
+            border-top: 1px solid #e9ecef;
+            background: white;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .send-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #007bff;
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        /* Modal Styles */
+        .modal-header {
+            border-bottom: 1px solid #e9ecef;
+            padding: 20px;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            border-top: 1px solid #e9ecef;
+            padding: 20px;
+        }
+
+        .category-card {
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 15px;
+        }
+
+        .category-card:hover,
+        .category-card.selected {
+            border-color: #007bff;
+            background-color: #f8f9ff;
+        }
+
+        .category-icon {
+            font-size: 2rem;
+            color: #007bff;
+            margin-bottom: 10px;
+        }
+
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-bottom: 8px;
+        }
+
+        .user-item:hover,
+        .user-item.selected {
+            background-color: #f8f9ff;
+        }
+
+        .user-checkbox {
+            margin-right: 12px;
+        }
+
+        .user-avatar-small {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .step {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #e9ecef;
+            color: #666;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 10px;
+            font-weight: bold;
+        }
+
+        .step.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .step.completed {
+            background: #28a745;
+            color: white;
+        }
+
+        .chat-badge {
+            background: #28a745;
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 5px;
+        }
+
+        .chat-badge.private {
+            background: #6f42c1;
+        }
+
+        .chat-badge.archived {
+            background: #6c757d;
+        }
+
+        .login-link {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #007bff;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .login-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .chat-sidebar {
+                width: 100%;
+                position: absolute;
+                z-index: 1000;
+                height: 100vh;
+            }
+
+            .chat-content {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <a href="login.html" class="login-link">
+        <i class="fas fa-sign-in-alt"></i> Login
+    </a>
+
+    <div class="container-fluid main-chat-wrapper">
+        <div class="chat-screen">
+            <!-- Chat Sidebar -->
+            <div class="chat-sidebar">
+                <div class="chat-header">
+                    <h3>
+                        <a href="#" class="back-btn">
+                            <i class="fas fa-chevron-left"></i>
+                            <span>Back</span>
+                        </a>
+                        Conversations
+                        <button class="new-message-btn" data-bs-toggle="modal" data-bs-target="#newConversationModal">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </h3>
+                </div>
+
+                <div class="chat-filters">
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="all">
+                            <i class="fas fa-comments"></i> All
+                        </button>
+                        <button class="filter-btn" data-filter="private">
+                            <i class="fas fa-user-lock"></i> Private
+                        </button>
+                        <button class="filter-btn" data-filter="group">
+                            <i class="fas fa-users"></i> Groups
+                        </button>
+                        <button class="filter-btn" data-filter="archived">
+                            <i class="fas fa-archive"></i> Archived
+                        </button>
+                    </div>
+                </div>
+
+                <div class="search-section">
+                    <input type="text" class="search-input" placeholder="Search conversations...">
+                </div>
+
+                <div class="chat-list" id="chatList">
+                    <!-- Private Chats -->
+                    <a href="#" class="chat-item active" data-type="private">
+                        <img src="https://ui-avatars.com/api/?name=T&size=200&background=e1d9d9&color=000" alt="Test User" class="chat-avatar">
+                        <div class="chat-info">
+                            <h3 class="chat-name">Test User <span class="chat-badge private">Private</span></h3>
+                            <div class="chat-status">
+                                <i class="fas fa-paperclip"></i>
+                                <span>MMS</span>
+                            </div>
+                        </div>
+                        <div class="chat-time">
+                            <h4>4d ago</h4>
+                            <small>Feedback</small>
+                        </div>
+                    </a>
+
+                    <a href="#" class="chat-item" data-type="private">
+                        <img src="https://ui-avatars.com/api/?name=SA&size=200&background=ff6b6b&color=fff" alt="Sarah Anderson" class="chat-avatar">
+                        <div class="chat-info">
+                            <h3 class="chat-name">Sarah Anderson <span class="chat-badge private">Private</span></h3>
+                            <div class="chat-status">
+                                <i class="fas fa-check-double text-success"></i>
+                                <span>Hey, how are you?</span>
+                            </div>
+                        </div>
+                        <div class="chat-time">
+                            <h4>2h ago</h4>
+                            <small>Personal</small>
+                        </div>
+                    </a>
+
+                    <a href="#" class="chat-item" data-type="private">
+                        <img src="https://ui-avatars.com/api/?name=MJ&size=200&background=4ecdc4&color=fff" alt="Mike Johnson" class="chat-avatar">
+                        <div class="chat-info">
+                            <h3 class="chat-name">Mike Johnson <span class="chat-badge private">Private</span></h3>
+                            <div class="chat-status">
+                                <i class="fas fa-image"></i>
+                                <span>Photo</span>
+                            </div>
+                        </div>
+                        <div class="chat-time">
+                            <h4>1d ago</h4>
+                            <small>Work</small>
+                        </div>
+                    </a>
+
+                    <!-- Group Chats -->
+                    <a href="#" class="chat-item" data-type="group">
+                        <img src="https://ui-avatars.com/api/?name=PT&size=200&background=007bff&color=fff" alt="Project Team" class="chat-avatar">
+                        <div class="chat-info">
+                            <h3 class="chat-name">Project Team <span class="chat-badge">Group</span></h3>
+                            <div class="chat-status">
+                                <i class="fas fa-users"></i>
+                                <span>12 members</span>
+                            </div>
+                        </div>
+                        <div class="chat-time">
+                            <h4>30m ago</h4>
+                            <small>Work</small>
+                        </div>
+                    </a>
+
+                    <a href="#" class="chat-item" data-type="group">
+                        <img src="https://ui-avatars.com/api/?name=FF&size=200&background=28a745&color=fff" alt="Family & Friends" class="chat-avatar">
+                        <div class="chat-info">
+                            <h3 class="chat-name">Family & Friends <span class="chat-badge">Group</span></h3>
+                            <div class="chat-status">
+                                <i class="fas fa-users"></i>
+                                <span>8 members</span>
+                            </div>
+                        </div>
+                        <div class="chat-time">
+                            <h4>3h ago</h4>
+                            <small>Personal</small>
+                        </div>
+                    </a>
+
+                    <a href="#" class="chat-item" data-type="group">
+                        <img src="https://ui-avatars.com/api/?name=DS&size=200&background=ffc107&color=000" alt="Design Squad" class="chat-avatar">
+                        <div class="chat-info">
+                            <h3 class="chat-name">Design Squad <span class="chat-badge">Group</span></h3>
+                            <div class="chat-status">
+                                <i class="fas fa-users"></i>
+                                <span>5 members</span>
+                            </div>
+                        </div>
+                        <div class="chat-time">
+                            <h4>1d ago</h4>
+                            <small>Creative</small>
+                        </div>
+                    </a>
+
+                    <!-- Business Chats -->
+                    <a href="#" class="chat-item" data-type="private">
+                        <img src="https://ui-avatars.com/api/?name=TP&size=200&background=007bff&color=fff" alt="Transport Provider" class="chat-avatar">
+                        <div class="chat-info">
+                            <h3 class="chat-name">Transport Provider #21F4B <span class="chat-badge private">Private</span></h3>
+                            <div class="chat-status">
+                                <i class="fas fa-paperclip"></i>
+                                <span>MMS</span>
+                            </div>
+                        </div>
+                        <div class="chat-time">
+                            <h4>1mo ago</h4>
+                            <small>Business</small>
+                        </div>
+                    </a>
+
+                    <a href="#" class="chat-item" data-type="private">
+                        <img src="https://ui-avatars.com/api/?name=A&size=200&background=28a745&color=fff" alt="Adil" class="chat-avatar">
+                        <div class="chat-info">
+                            <h3 class="chat-name">Adil <span class="chat-badge private">Private</span></h3>
+                            <div class="chat-status">
+                                <i class="fas fa-paperclip"></i>
+                                <span>MMS</span>
+                            </div>
+                        </div>
+                        <div class="chat-time">
+                            <h4>2mos ago</h4>
+                            <small>Business</small>
+                        </div>
+                    </a>
+
+                    <!-- Archived Chats -->
+                    <a href="#" class="chat-item" data-type="archived" style="display: none;">
+                        <img src="https://ui-avatars.com/api/?name=KS&size=200&background=6c757d&color=fff" alt="Kerry Spence" class="chat-avatar">
+                        <div class="chat-info">
+                            <h3 class="chat-name">Kerry Spence <span class="chat-badge archived">Archived</span></h3>
+                        </div>
+                        <div class="chat-time">
+                            <h4>3mos ago</h4>
+                            <small>Old Chat</small>
+                        </div>
+                    </a>
+
+                    <a href="#" class="chat-item" data-type="archived" style="display: none;">
+                        <img src="https://ui-avatars.com/api/?name=OC&size=200&background=6c757d&color=fff" alt="Old Client" class="chat-avatar">
+                        <div class="chat-info">
+                            <h3 class="chat-name">Old Client Project <span class="chat-badge archived">Archived</span></h3>
+                        </div>
+                        <div class="chat-time">
+                            <h4>6mos ago</h4>
+                            <small>Completed</small>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Chat Content -->
+            <div class="chat-content">
+                <div class="chat-conversation-header">
+                    <img src="https://ui-avatars.com/api/?name=T&size=200&background=e1d9d9&color=000" alt="Test User" class="conversation-avatar">
+                    <div class="conversation-info">
+                        <h3>Test User</h3>
+                        <p>Last seen 4 days ago</p>
+                    </div>
+                </div>
+
+                <div class="messages-container">
+                    <div class="message-group">
+                        <div class="message">
+                            Hello, how can I help you today?
+                            <div class="message-time">2:30 PM</div>
+                        </div>
+                    </div>
+
+                    <div class="message-group">
+                        <div class="message sent">
+                            Hi! I need some information about your services.
+                            <div class="message-time">2:32 PM</div>
+                        </div>
+                    </div>
+
+                    <div class="message-group">
+                        <div class="audio-player">
+                            <div class="audio-controls">
+                                <button class="play-btn">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                                <div class="audio-progress">
+                                    <div class="audio-progress-bar" style="width: 35%;"></div>
+                                </div>
+                                <span class="audio-time">0:45 / 2:15</span>
+                            </div>
+                            <audio preload="metadata">
+                                <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvGIcBz2Y3PLNeSsFJH3J8NuPPwkXYrfr5Z9OEglNqOPwtWAcBjiJ1fPNeSsFJnrG8N2QQQoNW7Td7KdVFQpCntzvuFweBDOX3fPNfSwBLYHM8+OLOgcLYrPu5Z1MEAZX1gAAAAB=" type="audio/wav">
+                            </audio>
+                        </div>
+                    </div>
+
+                    <div class="message-group">
+                        <div class="image-viewer">
+                            <a data-fancybox="gallery" href="https://via.placeholder.com/400x300/007bff/ffffff?text=Sample+Image">
+                                <img src="https://via.placeholder.com/200x150/007bff/ffffff?text=Sample+Image" alt="Sample Image">
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="message-group">
+                        <div class="file-attachment">
+                            <div class="file-icon">
+                                <i class="fas fa-file-pdf"></i>
+                            </div>
+                            <div class="file-info">
+                                <h4 class="file-name">document.pdf</h4>
+                                <span class="file-size">2.5 MB</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="message-group">
+                        <div class="file-attachment">
+                            <div class="file-icon">
+                                <i class="fas fa-file-word"></i>
+                            </div>
+                            <div class="file-info">
+                                <h4 class="file-name">report.docx</h4>
+                                <span class="file-size">1.8 MB</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="message-input-area">
+                    <div class="input-group">
+                        <input type="text" class="message-input" placeholder="Type a message...">
+                        <button class="send-btn">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- New Conversation Modal -->
+    <div class="modal fade" id="newConversationModal" tabindex="-1" aria-labelledby="newConversationModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newConversationModalLabel">Start New Conversation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Step Indicator -->
+                    <div class="step-indicator">
+                        <div class="step active" id="step1">1</div>
+                        <div class="step" id="step2">2</div>
+                    </div>
+
+                    <!-- Step 1: Choose Category -->
+                    <div id="categoryStep" class="step-content">
+                        <h6 class="mb-4">Choose conversation type:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="category-card" data-category="private">
+                                    <div class="category-icon">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                    <h6>Private Chat</h6>
+                                    <p class="text-muted">One-on-one conversation</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="category-card" data-category="group">
+                                    <div class="category-icon">
+                                        <i class="fas fa-users"></i>
+                                    </div>
+                                    <h6>Group Chat</h6>
+                                    <p class="text-muted">Chat with multiple people</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Choose Users -->
+                    <div id="userStep" class="step-content" style="display: none;">
+                        <h6 class="mb-4" id="userStepTitle">Select user:</h6>
+                        <div id="userList">
+                            <!-- Users will be populated here -->
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="nextBtn" disabled>Next</button>
+                    <button type="button" class="btn btn-success" id="createBtn" style="display: none;" disabled>Create Chat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Fancybox JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fancybox/3.5.7/jquery.fancybox.min.js"></script>
+
+    <script>
+        // Sample users data
+        const users = [
+            { id: 1, name: 'Emma Wilson', avatar: 'https://ui-avatars.com/api/?name=EW&size=200&background=ff9f43&color=fff', status: 'online' },
+            { id: 2, name: 'David Chen', avatar: 'https://ui-avatars.com/api/?name=DC&size=200&background=00d2d3&color=fff', status: 'offline' },
+            { id: 3, name: 'Lisa Rodriguez', avatar: 'https://ui-avatars.com/api/?name=LR&size=200&background=ff6b6b&color=fff', status: 'online' },
+            { id: 4, name: 'James Anderson', avatar: 'https://ui-avatars.com/api/?name=JA&size=200&background=4ecdc4&color=fff', status: 'away' },
+            { id: 5, name: 'Maria Garcia', avatar: 'https://ui-avatars.com/api/?name=MG&size=200&background=45b7d1&color=fff', status: 'online' },
+            { id: 6, name: 'Robert Taylor', avatar: 'https://ui-avatars.com/api/?name=RT&size=200&background=f9ca24&color=000', status: 'offline' },
+            { id: 7, name: 'Sophie Martin', avatar: 'https://ui-avatars.com/api/?name=SM&size=200&background=6c5ce7&color=fff', status: 'online' },
+            { id: 8, name: 'Alex Thompson', avatar: 'https://ui-avatars.com/api/?name=AT&size=200&background=ff7675&color=fff', status: 'away' }
+        ];
+
+        let selectedCategory = '';
+        let selectedUsers = [];
+
+        // Initialize Fancybox for image gallery
+        $(document).ready(function () {
+            $('[data-fancybox]').fancybox({
+                loop: true,
+                buttons: ["zoom", "slideShow", "thumbs", "close"],
+            });
+        });
+
+        // Audio player functionality
+        document.addEventListener("DOMContentLoaded", () => {
+            initAudioPlayers();
+        });
+
+        function initAudioPlayers() {
+            const audioPlayers = document.querySelectorAll(".audio-player");
+
+            audioPlayers.forEach((audioWrapper) => {
+                const playBtn = audioWrapper.querySelector(".play-btn");
+                const progressBar = audioWrapper.querySelector(".audio-progress-bar");
+                const progressContainer = audioWrapper.querySelector(".audio-progress");
+                const timeDisplay = audioWrapper.querySelector(".audio-time");
+                const audio = audioWrapper.querySelector("audio");
+
+                if (!audio || !playBtn) return;
+
+                let isPlaying = false;
+
+                playBtn.addEventListener("click", () => {
+                    togglePlay(audio, playBtn);
+                });
+
+                audio.addEventListener("timeupdate", () => {
+                    updateProgress(audio, progressBar, timeDisplay);
+                });
+
+                audio.addEventListener("loadedmetadata", () => {
+                    updateProgress(audio, progressBar, timeDisplay);
+                });
+
+                audio.addEventListener("ended", () => {
+                    isPlaying = false;
+                    playBtn.innerHTML = '<i class="fas fa-play"></i>';
+                    audio.currentTime = 0;
+                });
+
+                progressContainer.addEventListener("click", (e) => {
+                    const rect = progressContainer.getBoundingClientRect();
+                    const percent = (e.clientX - rect.left) / rect.width;
+                    audio.currentTime = audio.duration * percent;
+                });
+            });
+        }
+
+        function togglePlay(audio, button) {
+            const isPlaying = !audio.paused;
+
+            // Pause all other audio players
+            document.querySelectorAll("audio").forEach((a) => {
+                if (a !== audio) {
+                    a.pause();
+                    const btn = a.closest(".audio-player").querySelector(".play-btn");
+                    if (btn) btn.innerHTML = '<i class="fas fa-play"></i>';
+                }
+            });
+
+            if (isPlaying) {
+                audio.pause();
+                button.innerHTML = '<i class="fas fa-play"></i>';
+            } else {
+                audio.play().catch(err => console.error("Audio play failed:", err));
+                button.innerHTML = '<i class="fas fa-pause"></i>';
+            }
+        }
+
+        function updateProgress(audio, progressBar, timeDisplay) {
+            if (!audio.duration) return;
+
+            const percent = (audio.currentTime / audio.duration) * 100;
+            progressBar.style.width = percent + "%";
+            
+            const currentTime = formatTime(audio.currentTime);
+            const totalTime = formatTime(audio.duration);
+            timeDisplay.textContent = `${currentTime} / ${totalTime}`;
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds) || seconds === Infinity) return "0:00";
+            const min = Math.floor(seconds / 60);
+            const sec = Math.floor(seconds % 60);
+            return `${min}:${sec < 10 ? "0" + sec : sec}`;
+        }
+
+        // Filter button functionality
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const filter = btn.getAttribute('data-filter');
+                filterChats(filter);
+            });
+        });
+
+        function filterChats(filter) {
+            const chatItems = document.querySelectorAll('.chat-item');
+            
+            chatItems.forEach(item => {
+                const chatType = item.getAttribute('data-type');
+                
+                if (filter === 'all') {
+                    item.style.display = 'flex';
+                } else if (filter === 'group' && chatType === 'group') {
+                    item.style.display = 'flex';
+                } else if (filter === 'private' && chatType === 'private') {
+                    item.style.display = 'flex';
+                } else if (filter === 'archived' && chatType === 'archived') {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Chat item selection
+        document.querySelectorAll('.chat-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+            });
+        });
+
+        // Send message functionality
+        const messageInput = document.querySelector('.message-input');
+        const sendBtn = document.querySelector('.send-btn');
+        const messagesContainer = document.querySelector('.messages-container');
+
+        function sendMessage() {
+            const messageText = messageInput.value.trim();
+            if (!messageText) return;
+
+            // Create new message element
+            const messageGroup = document.createElement('div');
+            messageGroup.className = 'message-group';
+            
+            const message = document.createElement('div');
+            message.className = 'message sent';
+            message.innerHTML = `
+                ${messageText}
+                <div class="message-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+            `;
+            
+            messageGroup.appendChild(message);
+            messagesContainer.appendChild(messageGroup);
+            
+            // Clear input and scroll to bottom
+            messageInput.value = '';
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Search functionality
+        const searchInput = document.querySelector('.search-input');
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const chatItems = document.querySelectorAll('.chat-item');
+            
+            chatItems.forEach(item => {
+                const chatName = item.querySelector('.chat-name').textContent.toLowerCase();
+                if (chatName.includes(searchTerm)) {
+                    item.style.display = 'flex';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        });
+
+        // New Conversation Modal functionality
+        const newConversationModal = document.getElementById('newConversationModal');
+        const categoryStep = document.getElementById('categoryStep');
+        const userStep = document.getElementById('userStep');
+        const nextBtn = document.getElementById('nextBtn');
+        const createBtn = document.getElementById('createBtn');
+        const step1 = document.getElementById('step1');
+        const step2 = document.getElementById('step2');
+
+        // Category selection
+        document.querySelectorAll('.category-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.category-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedCategory = card.getAttribute('data-category');
+                nextBtn.disabled = false;
+            });
+        });
+
+        // Next button click
+        nextBtn.addEventListener('click', () => {
+            if (selectedCategory) {
+                // Move to step 2
+                step1.classList.remove('active');
+                step1.classList.add('completed');
+                step2.classList.add('active');
+                
+                categoryStep.style.display = 'none';
+                userStep.style.display = 'block';
+                
+                // Update title and populate users
+                const title = selectedCategory === 'group' ? 'Select users for group:' : 'Select user:';
+                document.getElementById('userStepTitle').textContent = title;
+                populateUsers(selectedCategory);
+                
+                nextBtn.style.display = 'none';
+                createBtn.style.display = 'inline-block';
+            }
+        });
+
+        function populateUsers(category) {
+            const userList = document.getElementById('userList');
+            userList.innerHTML = '';
+            
+            users.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                userItem.setAttribute('data-user-id', user.id);
+                
+                const statusIcon = user.status === 'online' ? 'text-success' : 
+                                 user.status === 'away' ? 'text-warning' : 'text-secondary';
+                
+                userItem.innerHTML = `
+                    ${category === 'group' ? `<input type="checkbox" class="user-checkbox">` : ''}
+                    <img src="${user.avatar}" alt="${user.name}" class="user-avatar-small">
+                    <div class="flex-grow-1">
+                        <h6 class="mb-0">${user.name}</h6>
+                        <small class="${statusIcon}">
+                            <i class="fas fa-circle"></i> ${user.status}
+                        </small>
+                    </div>
+                `;
+                
+                userItem.addEventListener('click', () => {
+                    if (category === 'group') {
+                        const checkbox = userItem.querySelector('.user-checkbox');
+                        checkbox.checked = !checkbox.checked;
+                        
+                        if (checkbox.checked) {
+                            selectedUsers.push(user.id);
+                            userItem.classList.add('selected');
+                        } else {
+                            selectedUsers = selectedUsers.filter(id => id !== user.id);
+                            userItem.classList.remove('selected');
+                        }
+                        
+                        createBtn.disabled = selectedUsers.length === 0;
+                    } else {
+                        document.querySelectorAll('.user-item').forEach(item => item.classList.remove('selected'));
+                        userItem.classList.add('selected');
+                        selectedUsers = [user.id];
+                        createBtn.disabled = false;
+                    }
+                });
+                
+                userList.appendChild(userItem);
+            });
+        }
+
+        // Create button click
+        createBtn.addEventListener('click', () => {
+            if (selectedUsers.length > 0) {
+                // Create new chat
+                createNewChat(selectedCategory, selectedUsers);
+                
+                // Reset modal
+                resetModal();
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(newConversationModal);
+                modal.hide();
+            }
+        });
+
+        function createNewChat(category, userIds) {
+            const selectedUserData = users.filter(user => userIds.includes(user.id));
+            const chatList = document.getElementById('chatList');
+            
+            // Create new chat item
+            const newChatItem = document.createElement('a');
+            newChatItem.href = '#';
+            newChatItem.className = 'chat-item';
+            newChatItem.setAttribute('data-type', category);
+            
+            let chatName, chatAvatar, chatInfo;
+            
+            if (category === 'group') {
+                chatName = `New Group (${selectedUserData.length} members)`;
+                chatAvatar = 'https://ui-avatars.com/api/?name=NG&size=200&background=007bff&color=fff';
+                chatInfo = `<i class="fas fa-users"></i> <span>${selectedUserData.length} members</span>`;
+            } else {
+                const user = selectedUserData[0];
+                chatName = user.name;
+                chatAvatar = user.avatar;
+                chatInfo = `<i class="fas fa-circle text-success"></i> <span>Online</span>`;
+            }
+            
+            newChatItem.innerHTML = `
+                <img src="${chatAvatar}" alt="${chatName}" class="chat-avatar">
+                <div class="chat-info">
+                    <h3 class="chat-name">${chatName} <span class="chat-badge${category === 'group' ? '' : ' private'}">${category === 'group' ? 'Group' : 'Private'}</span></h3>
+                    <div class="chat-status">
+                        ${chatInfo}
+                    </div>
+                </div>
+                <div class="chat-time">
+                    <h4>now</h4>
+                    <small>New</small>
+                </div>
+            `;
+            
+            // Add click event
+            newChatItem.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+                newChatItem.classList.add('active');
+            });
+            
+            // Insert at the top of chat list
+            chatList.insertBefore(newChatItem, chatList.firstChild);
+            
+            // Select the new chat
+            document.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+            newChatItem.classList.add('active');
+        }
+
+        function resetModal() {
+            // Reset steps
+            step1.classList.add('active');
+            step1.classList.remove('completed');
+            step2.classList.remove('active');
+            
+            // Reset visibility
+            categoryStep.style.display = 'block';
+            userStep.style.display = 'none';
+            nextBtn.style.display = 'inline-block';
+            nextBtn.disabled = true;
+            createBtn.style.display = 'none';
+            createBtn.disabled = true;
+            
+            // Reset selections
+            selectedCategory = '';
+            selectedUsers = [];
+            document.querySelectorAll('.category-card').forEach(c => c.classList.remove('selected'));
+        }
+
+        // Reset modal when it's hidden
+        newConversationModal.addEventListener('hidden.bs.modal', resetModal);
+    </script>
+</body>
+
+</html>

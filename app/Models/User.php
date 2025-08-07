@@ -1,0 +1,214 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, Notifiable;
+
+    protected $fillable = [
+        'first_name',
+        'last_name',
+        'username',
+        'email',
+        'password',
+        'avatar',
+        'bio',
+        'phone',
+        'timezone',
+        'language',
+        'theme',
+        'theme_color',
+        'email_notifications',
+        'sms_notifications',
+        'push_notifications',
+        'sound_notifications',
+        'notification_email',
+        'notification_phone',
+        'notification_frequency',
+        'quiet_hours_start',
+        'quiet_hours_end',
+        'last_seen_at',
+        'last_login_at',
+        'last_login_ip',
+        'email_verified_at',
+        'is_online',
+        'is_admin',
+        'status',
+        'status_message',
+    ];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'last_seen_at' => 'datetime',
+        'last_login_at' => 'datetime',
+        'password' => 'hashed',
+        'email_notifications' => 'boolean',
+        'sms_notifications' => 'boolean',
+        'push_notifications' => 'boolean',
+        'sound_notifications' => 'boolean',
+        'is_online' => 'boolean',
+        'is_admin' => 'boolean',
+        'quiet_hours_start' => 'datetime:H:i',
+        'quiet_hours_end' => 'datetime:H:i',
+    ];
+
+    // Accessors
+    public function getNameAttribute()
+    {
+        return $this->first_name . ' ' . $this->last_name;
+    }
+
+    public function getInitialsAttribute()
+    {
+        return strtoupper(substr($this->first_name, 0, 1) . substr($this->last_name, 0, 1));
+    }
+
+    public function getIsOnlineAttribute()
+    {
+        return $this->last_seen_at && $this->last_seen_at->gt(now()->subMinutes(5));
+    }
+
+    public function getAvatarUrlAttribute()
+    {
+        if ($this->avatar) {
+            return asset('storage/' . $this->avatar);
+        }
+
+        return "https://ui-avatars.com/api/?name=" . urlencode($this->name) . "&size=200&background=random";
+    }
+
+    // Relationships
+    public function conversations()
+    {
+        return $this->belongsToMany(Conversation::class, 'conversation_participants')
+                    ->withPivot(['joined_at', 'left_at', 'role'])
+                    ->withTimestamps();
+    }
+
+    public function messages()
+    {
+        return $this->hasMany(Message::class);
+    }
+
+    public function sentFriendRequests()
+    {
+        return $this->hasMany(FriendRequest::class, 'sender_id');
+    }
+
+    public function receivedFriendRequests()
+    {
+        return $this->hasMany(FriendRequest::class, 'receiver_id');
+    }
+
+    public function friends()
+    {
+        return $this->belongsToMany(User::class, 'friendships', 'user_id', 'friend_id')
+                    ->select(['users.id', 'users.first_name', 'users.last_name', 'users.avatar', 'users.last_seen_at'])
+                    ->withPivot(['created_at'])
+                    ->withTimestamps();
+    }
+
+    public function friendsOf()
+    {
+        return $this->belongsToMany(User::class, 'friendships', 'friend_id', 'user_id')
+                    ->select(['users.id', 'users.first_name', 'users.last_name', 'users.avatar', 'users.last_seen_at'])
+                    ->withPivot(['created_at'])
+                    ->withTimestamps();
+    }
+
+    public function messageReactions()
+    {
+        return $this->hasMany(MessageReaction::class);
+    }
+
+    public function messageReadReceipts()
+    {
+        return $this->hasMany(MessageReadReceipt::class);
+    }
+
+    public function notificationPreferences()
+    {
+        return $this->hasOne(NotificationPreference::class);
+    }
+
+    public function devices()
+    {
+        return $this->hasMany(UserDevice::class);
+    }
+
+    // Helper Methods
+    public function isFriendWith(User $user)
+    {
+        return $this->friends()->where('friend_id', $user->id)->exists() ||
+               $this->friendsOf()->where('user_id', $user->id)->exists();
+    }
+
+    public function hasPendingFriendRequestFrom(User $user)
+    {
+        return $this->receivedFriendRequests()
+                    ->where('sender_id', $user->id)
+                    ->where('status', 'pending')
+                    ->exists();
+    }
+
+    public function hasSentFriendRequestTo(User $user)
+    {
+        return $this->sentFriendRequests()
+                    ->where('receiver_id', $user->id)
+                    ->where('status', 'pending')
+                    ->exists();
+    }
+
+    public function canMessageUser(User $user)
+    {
+        return $this->isFriendWith($user) || $this->id === $user->id;
+    }
+
+    public function updateLastSeen()
+    {
+        $this->update(['last_seen_at' => now()]);
+    }
+
+    public function markAsOnline()
+    {
+        $this->update([
+            'is_online' => true,
+            'last_seen_at' => now()
+        ]);
+    }
+
+    public function markAsOffline()
+    {
+        $this->update([
+            'is_online' => false,
+            'last_seen_at' => now()
+        ]);
+    }
+
+    // Scopes
+    public function scopeOnline($query)
+    {
+        return $query->where('last_seen_at', '>', now()->subMinutes(5));
+    }
+
+    public function scopeSearch($query, $term)
+    {
+        return $query->where(function ($q) use ($term) {
+            $q->where('first_name', 'like', "%{$term}%")
+              ->orWhere('last_name', 'like', "%{$term}%")
+              ->orWhere('username', 'like', "%{$term}%")
+              ->orWhere('email', 'like', "%{$term}%");
+        });
+    }
+}
