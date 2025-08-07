@@ -1,0 +1,45 @@
+{
+  "version": 2,
+  "framework": null,
+  "functions": {
+    "api/index.php": {
+      "runtime": "vercel-php@0.6.0"
+    }
+  },
+  "routes": [
+    {
+      "src": "/build/(.*)",
+      "dest": "/public/build/$1"
+    },
+    {
+      "src": "/favicon.ico",
+      "dest": "/public/favicon.ico"
+    },
+    {
+      "src": "/robots.txt",
+      "dest": "/public/robots.txt"
+    },
+    {
+      "src": "/sitemap.xml",
+      "dest": "/public/sitemap.xml"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.php"
+    }
+  ],
+  "outputDirectory": "public",
+  "buildCommand": "npm run build && composer install --optimize-autoloader --no-dev",
+  "devCommand": "php artisan serve",
+  "installCommand": "npm install && composer install",
+  "env": {
+    "APP_ENV": "production",
+    "APP_DEBUG": "false",
+    "APP_URL": "https://fastdocnow.com",
+    "CACHE_DRIVER": "array",
+    "SESSION_DRIVER": "cookie",
+    "QUEUE_DRIVER": "sync",
+    "VIEW_COMPILED_PATH": "/tmp/storage/framework/views",
+    "SSR_TEMP_PATH": "/tmp"
+  }
+}
