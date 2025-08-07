@@ -33,9 +33,9 @@
     }
   ],
   "outputDirectory": "public",
-  "buildCommand": "npm run vercel-build",
+  "buildCommand": "npm run build",
   "devCommand": "php artisan serve --host=0.0.0.0 --port=8000",
-  "installCommand": "npm install && composer install --optimize-autoloader --no-dev",
+  "installCommand": "npm install",
   "env": {
     "APP_ENV": "production",
     "APP_DEBUG": "false",

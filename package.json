@@ -11,7 +11,7 @@
         "migrate": "php artisan migrate",
         "seed": "php artisan db:seed",
         "setup": "npm install && composer install && php artisan migrate --seed",
-        "vercel-build": "npm run build && composer install --optimize-autoloader --no-dev"
+    "vercel-build": "npm run build"
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.7",
