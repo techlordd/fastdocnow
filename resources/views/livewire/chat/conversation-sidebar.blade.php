@@ -166,7 +166,6 @@
             wire:click="selectConversation({{ $conversation['id'] }})"
             class="conversation-item {{ $activeConversationId == $conversation['id'] ? 'active' : '' }}"
             wire:key="conversation-{{ $conversation['id'] }}">
-
             <!-- Avatar -->
             <div class="conversation-avatar">
                 @if($conversation['contact_type'] === 'doctor')

@@ -23,9 +23,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
     <!-- Custom App CSS -->
-    @vite(['resources/css/app.css'])
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 
-    <!-- Dynamic Theme Colors -->
     <style id="dynamic-theme">
         :root {
             --primary-color: #fff;
@@ -323,9 +322,10 @@
 
     <!-- Emoji Picker CDN -->
     <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
-
+    
     <!-- Application JavaScript -->
-    @vite(['resources/js/app.js', 'resources/js/chat.js'])
+    <script src="{{ asset('js/app.js') }}"></script>
+    <script src="{{ asset('js/chat.js') }}"></script>
 
     <!-- Real-time connection status -->
     <div id="connectionStatus" class="position-fixed bottom-0 start-0 m-3 d-none" style="z-index: 1050;">

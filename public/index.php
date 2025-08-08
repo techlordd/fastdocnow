@@ -3,6 +3,17 @@
 use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Http\Request;
 
+/*
+|--------------------------------------------------------------------------
+| Define Application Start
+|--------------------------------------------------------------------------
+|
+| This script defines the LARAVEL_START constant, which is used to
+| measure the total execution time of the application. It's a simple
+| but effective way to benchmark the application's performance.
+|
+*/
+
 define('LARAVEL_START', microtime(true));
 
 /*

@@ -83,10 +83,6 @@ class ProfileController extends Controller
     public function updateNotifications(Request $request)
     {
         $request->validate([
-            'email_notifications' => 'boolean',
-            'sms_notifications' => 'boolean',
-            'push_notifications' => 'boolean',
-            'sound_notifications' => 'boolean',
             'notification_email' => 'nullable|email',
             'notification_phone' => 'nullable|string|max:20',
             'notification_frequency' => 'required|in:instant,hourly,daily',
@@ -97,10 +93,10 @@ class ProfileController extends Controller
         $user = Auth::user();
 
         $user->update([
-            'email_notifications' => $request->boolean('email_notifications'),
-            'sms_notifications' => $request->boolean('sms_notifications'),
-            'push_notifications' => $request->boolean('push_notifications'),
-            'sound_notifications' => $request->boolean('sound_notifications'),
+            'email_notifications' => $request->has('email_notifications'),
+            'sms_notifications' => $request->has('sms_notifications'),
+            'push_notifications' => $request->has('push_notifications'),
+            'sound_notifications' => $request->has('sound_notifications'),
             'notification_email' => $request->notification_email ?: $user->email,
             'notification_phone' => $request->notification_phone,
             'notification_frequency' => $request->notification_frequency,

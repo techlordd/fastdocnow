@@ -66,7 +66,9 @@ class ChatInterface extends Component
     public function refreshConversationData()
     {
         if ($this->conversation) {
-            $this->conversation = Conversation::with(['participants'])
+            $this->conversation = Conversation::with(['participants' => function($query) {
+                $query->select('users.id', 'users.first_name', 'users.last_name', 'users.avatar', 'users.last_seen_at', 'users.is_online');
+            }])
                 ->find($this->conversation->id);
         }
     }
@@ -213,9 +215,17 @@ class ChatInterface extends Component
             // Broadcast to other users
             broadcast(new MessageSent($message))->toOthers();
 
-            // Send notifications to assigned staff
-            $notificationService = new NotificationService();
-            $notificationService->sendMessageNotification($message);
+            // Send email notifications
+            $recipients = $this->conversation->participants()->where('user_id', '!=', Auth::id())->get();
+            foreach ($recipients as $recipient) {
+                if ($recipient->email_notifications) {
+                    try {
+                        \Illuminate\Support\Facades\Mail::to($recipient->notification_email ?? $recipient->email)->send(new \App\Mail\NewMessageEmail($message, Auth::user()));
+                    } catch (\Exception $e) {
+                        // Fail silently
+                    }
+                }
+            }
 
             // Dispatch events
             $this->dispatch('messageAdded');

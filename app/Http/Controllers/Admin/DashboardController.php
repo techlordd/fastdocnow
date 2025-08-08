@@ -34,18 +34,15 @@ class DashboardController extends Controller
             'mail_from_name' => 'required|string|max:255',
         ]);
 
-        // Store email configuration
-        $config = [
-            'smtp_host' => $request->smtp_host,
-            'smtp_port' => $request->smtp_port,
-            'smtp_username' => $request->smtp_username,
-            'smtp_password' => encrypt($request->smtp_password),
-            'smtp_encryption' => $request->smtp_encryption,
-            'mail_from_address' => $request->mail_from_address,
-            'mail_from_name' => $request->mail_from_name,
-        ];
-
-        Cache::put('email_config', $config, now()->addYear());
+        $this->updateEnvFile([
+            'MAIL_HOST' => $request->smtp_host,
+            'MAIL_PORT' => $request->smtp_port,
+            'MAIL_USERNAME' => $request->smtp_username,
+            'MAIL_PASSWORD' => $request->smtp_password,
+            'MAIL_ENCRYPTION' => $request->smtp_encryption,
+            'MAIL_FROM_ADDRESS' => $request->mail_from_address,
+            'MAIL_FROM_NAME' => $request->mail_from_name,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -198,14 +195,14 @@ class DashboardController extends Controller
     private function getSystemConfig()
     {
         return [
-            'email' => Cache::get('email_config', [
+            'email' => [
                 'smtp_host' => env('MAIL_HOST', ''),
                 'smtp_port' => env('MAIL_PORT', 587),
                 'smtp_username' => env('MAIL_USERNAME', ''),
                 'smtp_encryption' => env('MAIL_ENCRYPTION', 'tls'),
                 'mail_from_address' => env('MAIL_FROM_ADDRESS', ''),
                 'mail_from_name' => env('MAIL_FROM_NAME', ''),
-            ]),
+            ],
             'sms' => Cache::get('sms_config', [
                 'sms_provider' => 'twilio',
                 'sms_enabled' => false,
@@ -219,5 +216,21 @@ class DashboardController extends Controller
                 'app_name' => 'Chat System',
             ]),
         ];
+    }
+
+    private function updateEnvFile(array $data)
+    {
+        $envFilePath = base_path('.env');
+        $content = file_get_contents($envFilePath);
+
+        foreach ($data as $key => $value) {
+            $content = preg_replace(
+                "/^{$key}=.*/m",
+                "{$key}='{$value}'",
+                $content
+            );
+        }
+
+        file_put_contents($envFilePath, $content);
     }
 }
