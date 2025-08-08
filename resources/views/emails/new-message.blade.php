@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +13,7 @@
             margin: 0;
             padding: 0;
         }
+
         .container {
             max-width: 600px;
             margin: 20px auto;
@@ -20,24 +22,30 @@
             overflow: hidden;
             border: 1px solid #e0e0e0;
         }
+
         .header {
-            background-color: #4a5568; /* A neutral dark color */
+            background-color: #4a5568;
+            /* A neutral dark color */
             color: #ffffff;
             padding: 20px;
             text-align: center;
         }
+
         .header img {
             max-width: 150px;
             margin-bottom: 10px;
         }
+
         .content {
             padding: 30px;
             line-height: 1.6;
         }
+
         .content h1 {
             font-size: 22px;
             color: #2d3748;
         }
+
         .message-quote {
             background-color: #f7fafc;
             border-left: 4px solid #718096;
@@ -45,12 +53,15 @@
             margin: 20px 0;
             font-style: italic;
         }
+
         .button-container {
             text-align: center;
             margin-top: 30px;
         }
+
         .button {
-            background-color: #3490dc; /* A nice blue */
+            background-color: #3490dc;
+            /* A nice blue */
             color: #ffffff;
             padding: 12px 25px;
             text-decoration: none;
@@ -58,6 +69,7 @@
             font-weight: bold;
             display: inline-block;
         }
+
         .footer {
             background-color: #edf2f7;
             padding: 20px;
@@ -65,17 +77,35 @@
             font-size: 12px;
             color: #718096;
         }
+
         .footer a {
             color: #3490dc;
             text-decoration: none;
         }
+
+        .brand_logo {
+            display: flex;
+            height: 50px;
+            width: 100%;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .brand_logo img {
+            object-fit: contain;
+            width: fit-content;
+            margin: 0 auto;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
-            <!-- Replace 'logo.png' with the path to your actual logo -->
-            <img src="{{ asset('images/logo-placeholder.png') }}" alt="Your Logo">
+            <div class="brand_logo">
+                <img src="https://fastdocnow.com/wp-content/uploads/2024/10/FastDocNow-logo.png" alt="">
+            </div>
             <h2>New Message Received</h2>
         </div>
         <div class="content">
@@ -88,7 +118,7 @@
             <p>You can view the full message by clicking the button below:</p>
 
             <div class="button-container">
-                <a href="{{ url('/chat/' . $emailMessage->conversation_id) }}" class="button">View Conversation</a>
+                <a href="{{ url('/chat/') }}" class="button">View Conversation</a>
             </div>
         </div>
         <div class="footer">
@@ -98,4 +128,5 @@
         </div>
     </div>
 </body>
+
 </html>

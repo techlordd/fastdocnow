@@ -6,6 +6,7 @@ use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Laravel\Pulse\Users;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -38,7 +39,7 @@ class ConversationSidebar extends Component
                         'id' => $contact->assignedUser->id,
                         'name' => $contact->assignedUser->first_name . ' ' . $contact->assignedUser->last_name,
                         'last_seen_at' => $contact->assignedUser->last_seen_at,
-                        'is_online' => $contact->assignedUser->last_seen_at && 
+                        'is_online' => $contact->assignedUser->last_seen_at &&
                             $contact->assignedUser->last_seen_at->gt(now()->subMinutes(2)),
                     ] : null,
                 ];
@@ -48,38 +49,54 @@ class ConversationSidebar extends Component
         $this->conversationsall = Auth::user()->conversations()->get();
         $this->conversations = Auth::user()->conversations()
             ->with(['contact', 'latestMessage.user', 'participants'])
-            ->withCount(['messages as unread_count' => function ($query) {
-                $query->where('user_id', '!=', Auth::id())
-                    ->whereDoesntHave('readReceipts', function ($q) {
-                        $q->where('user_id', Auth::id());
-                    });
-            }])
+            ->withCount([
+                'messages as unread_count' => function ($query) {
+                    $query->where('user_id', '!=', Auth::id())
+                        ->whereDoesntHave('readReceipts', function ($q) {
+                            $q->where('user_id', Auth::id());
+                        });
+                }
+            ])
             ->orderByDesc('last_message_at')
             ->orderByDesc('created_at')
             ->get()
             ->map(function ($conversation) {
+                $otherUser = $conversation->participants
+                    ? $conversation->participants->firstWhere('id', '!=', Auth::id())
+                    : null;
+
+                $latestMessage = $conversation->latestMessage;
+                $latestMessageUser = $latestMessage?->user;
+
                 return [
                     'id' => $conversation->id,
                     'contact_id' => $conversation->contact_id,
-                    'contact_name' => $conversation->contact ? $conversation->contact->name : 'Unknown Contact',
-                    'contact_type' => $conversation->contact ? $conversation->contact->type : 'unknown',
-                    'latest_message' => $conversation->latestMessage ? [
-                        'content' => $conversation->latestMessage->content,
-                        'type' => $conversation->latestMessage->type,
-                        'created_at' => $conversation->latestMessage->created_at,
-                        'user_name' => $conversation->latestMessage->user->first_name ?? 'Unknown',
-                        'is_own' => $conversation->latestMessage->user_id === Auth::id(),
+                    'contact_name' => optional($conversation->contact)->name ?? 'Unknown Contact',
+                    'contact_type' => optional($conversation->contact)->type ?? 'unknown',
+
+                    'latest_message' => $latestMessage ? [
+                        'content' => $latestMessage->content,
+                        'type' => $latestMessage->type,
+                        'created_at' => $latestMessage->created_at,
+                        'user_name' => $latestMessageUser->first_name ?? 'Unknown',
+                        'is_own' => $latestMessage->user_id === Auth::id(),
                     ] : null,
-                    'unread_count' => $conversation->unread_count,
-                    'last_message_at' => $conversation->last_message_at,
+
+                    'unread_count' => $conversation->unread_count ?? 0,
+                    'last_message_at' => $latestMessage->created_at ?? null,
+
+                    'other_user_name' => $otherUser->first_name ?? 'Unknown',
+                    'other_user_last_name' => $otherUser->last_name ?? 'Unknown',
+                    'other_user_avatar' => $otherUser->avatar ?? null,
                 ];
-            })->toArray();
+            })
+            ->toArray();
     }
 
     public function startConversationWithContact($contactId)
     {
         $contact = Contact::with('assignedUser')->find($contactId);
-        
+
         if (!$contact || !$contact->is_active) {
             $this->dispatch('error', 'Contact is not available.');
             return;
@@ -114,7 +131,7 @@ class ConversationSidebar extends Component
 
         $this->loadContactsAndConversations();
         $this->selectConversation($conversation->id);
-        
+
         $this->dispatch('success', 'Conversation started with ' . $contact->name);
     }
 

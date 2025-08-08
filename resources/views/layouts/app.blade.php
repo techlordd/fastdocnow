@@ -149,6 +149,15 @@
     align-items: center;
     justify-content: center;
 }
+.brand_logo {
+            display: flex;
+            height: 50px;
+            width: fit-content;
+            img {
+                object-fit: contain;
+                width: fit-content;
+            }
+        }
     </style>
 
     <!-- Favicon -->

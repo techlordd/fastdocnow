@@ -36,10 +36,9 @@
         </button>
         <div class="d-flex align-items-center justify-content-between">
             <a class="navbar-brand d-flex align-items-center" href="/chat">
-                <div class="brand-icon me-2">
-                    <i class="fas fa-comments text-primary fs-4"></i>
+                <div class="brand_logo">
+                    <img src="{{asset('images/FastDocNow-logo.png')}}" alt="">
                 </div>
-                <span class="fw-bold fs-5">DocNow</span>
             </a>
             <div class="d-flex align-items-center gap-2">
                 <div class="dropdown">
@@ -168,24 +167,59 @@
             wire:key="conversation-{{ $conversation['id'] }}">
             <!-- Avatar -->
             <div class="conversation-avatar">
+                @if($conversation['contact_id'] != auth()->user()->id)
                 @if($conversation['contact_type'] === 'doctor')
                 <i class="fas fa-user-md"></i>
-                @else
+                @elseif($conversation['contact_type'] === 'support')
                 <i class="fas fa-headset"></i>
+                @endif
+                @else
+                <div class="chat-main-avatar">
+                    @php
+                    $otherUserAvatar = $conversation['other_user_avatar']
+                    @endphp
+                    @if($otherUserAvatar)
+                    <img src="{{ $otherUserAvatar }}" alt="{{ $conversation['other_user_name'] }}" width="40px" height="40px">
+                    @else
+                    {{ strtoupper(substr($conversation['other_user_name'] ?? 'U', 0, 1)) }}{{ strtoupper(substr($conversation['other_user_last_name'] ?? 'U', 0, 1)) }}
+                    @endif
+                </div>
                 @endif
             </div>
 
             <!-- Conversation Info -->
             <div class="conversation-info">
-                <div class="d-flex align-items-center justify-content-between mb-1">
+                <div class="d-flex align-items-center justify-content-between">
                     <div class="conversation-name">
+                        @if($conversation['contact_id'] != auth()->user()->id)
                         {{ $conversation['contact_name'] }}
-                    </div>
-                    <div class="conversation-time">
-                        @if($conversation['last_message_at'])
-                        {{ \Carbon\Carbon::parse($conversation['last_message_at'])->diffForHumans() }}
+                        @else
+                        {{ $conversation['other_user_name'] }} {{ $conversation['other_user_last_name'] }}
+                        <small class="d-block">@ {{$conversation['contact_name']}}</small>
                         @endif
                     </div>
+                    @php
+    if (!function_exists('shortTimeAgo')) {
+        function shortTimeAgo($time) {
+            $diff = \Carbon\Carbon::parse($time)->diff(now());
+
+            if ($diff->y > 0) return $diff->y . 'y ago';
+            if ($diff->m > 0) return $diff->m . 'mo ago';
+            if ($diff->d > 0) return $diff->d . 'd ago';
+            if ($diff->h > 0) return $diff->h . 'h ago';
+            if ($diff->i > 0) return $diff->i . 'm ago';
+            if ($diff->s > 0) return $diff->s . 's ago';
+
+            return 'just now';
+        }
+    }
+@endphp
+
+<div class="conversation-time">
+    @if(!empty($conversation['last_message_at']))
+        {{ shortTimeAgo($conversation['last_message_at']) }}
+    @endif
+</div>
                 </div>
 
                 <div class="d-flex align-items-center justify-content-between">
