@@ -392,14 +392,19 @@ class ChatInterface extends Component
 
             $filename = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
             $mimeType = $file->getClientMimeType();
+            $extension = strtolower(pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
 
-            // Determine file type
+            // Determine file type based on extension
+            $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+            $videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
+            $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'];
+
             $fileType = 'file';
-            if (strpos($mimeType, 'image/') === 0) {
+            if (in_array($extension, $imageExtensions)) {
                 $fileType = 'image';
-            } elseif (strpos($mimeType, 'video/') === 0) {
+            } elseif (in_array($extension, $videoExtensions)) {
                 $fileType = 'video';
-            } elseif (strpos($mimeType, 'audio/') === 0) {
+            } elseif (in_array($extension, $audioExtensions)) {
                 $fileType = 'audio';
             }
 
@@ -441,10 +446,16 @@ class ChatInterface extends Component
         }
 
         if (count($attachments) === 1) {
-            $mimeType = $attachments[0]['type'];
-            if (strpos($mimeType, 'image/') === 0) return 'image';
-            if (strpos($mimeType, 'video/') === 0) return 'video';
-            if (strpos($mimeType, 'audio/') === 0) return 'audio';
+            $fileName = $attachments[0]['name'];
+            $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+
+            $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+            $videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
+            $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'];
+
+            if (in_array($extension, $imageExtensions)) return 'image';
+            if (in_array($extension, $videoExtensions)) return 'video';
+            if (in_array($extension, $audioExtensions)) return 'audio';
         }
 
         return 'file';

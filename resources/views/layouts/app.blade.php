@@ -329,8 +329,7 @@
     <!-- SweetAlert2 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    <!-- Emoji Picker CDN -->
-    <script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
+    
     
     <!-- Application JavaScript -->
     <script src="{{ asset('js/app.js') }}"></script>

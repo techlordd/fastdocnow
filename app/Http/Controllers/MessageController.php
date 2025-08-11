@@ -213,14 +213,20 @@ class MessageController extends Controller
         $file = $request->file('file');
         $filename = time() . '_' . $file->getClientOriginalName();
 
-        // Determine file type
+        // Determine file type based on extension
         $mimeType = $file->getClientMimeType();
+        $extension = strtolower(pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
+
+        $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+        $videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
+        $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'];
+
         $fileType = 'file';
-        if (strpos($mimeType, 'image/') === 0) {
+        if (in_array($extension, $imageExtensions)) {
             $fileType = 'image';
-        } elseif (strpos($mimeType, 'video/') === 0) {
+        } elseif (in_array($extension, $videoExtensions)) {
             $fileType = 'video';
-        } elseif (strpos($mimeType, 'audio/') === 0) {
+        } elseif (in_array($extension, $audioExtensions)) {
             $fileType = 'audio';
         }
 
@@ -310,15 +316,20 @@ class MessageController extends Controller
         foreach ($request->file('files') as $file) {
             $filename = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
             $mimeType = $file->getClientMimeType();
+            $extension = strtolower(pathinfo($file->getClientOriginalName(), PATHINFO_EXTENSION));
+
+            $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+            $videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
+            $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'];
 
             $fileType = 'file';
-            if (strpos($mimeType, 'image/') === 0) {
+            if (in_array($extension, $imageExtensions)) {
                 $fileType = 'image';
                 if ($primaryType === 'file') $primaryType = 'image';
-            } elseif (strpos($mimeType, 'video/') === 0) {
+            } elseif (in_array($extension, $videoExtensions)) {
                 $fileType = 'video';
                 if ($primaryType === 'file') $primaryType = 'video';
-            } elseif (strpos($mimeType, 'audio/') === 0) {
+            } elseif (in_array($extension, $audioExtensions)) {
                 $fileType = 'audio';
                 if ($primaryType === 'file') $primaryType = 'audio';
             }

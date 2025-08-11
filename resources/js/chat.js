@@ -115,10 +115,13 @@ function initializeScrollButton() {
     }
 }
 
+
+
 function initializeEmojiPicker() {
     const emojiPicker = document.querySelector('emoji-picker');
     if (emojiPicker) {
         emojiPicker.addEventListener('emoji-click', function(event) {
+            console.log(event);
             const textarea = document.getElementById('chat-message-input');
             if (textarea) {
                 const emoji = event.detail.unicode;
@@ -266,8 +269,13 @@ window.toggleEmojiPicker = function() {
     const container = document.getElementById('emojiPickerContainer');
     if (container) {
         const isVisible = container.style.display !== 'none';
-        container.style.display = isVisible ? 'none' : 'block';
-        
+        if(isVisible){
+        container.style.display = 'none';
+        initializeEmojiPicker();
+    }else {
+            initializeEmojiPicker();
+            container.style.display = 'block';
+        }
         // Hide attachment menu
         const attachmentMenu = document.getElementById('attachmentMenu');
         if (attachmentMenu) {
@@ -320,6 +328,8 @@ document.addEventListener('click', function(e) {
         attachmentMenu.style.display = 'none';
     }
 });
+
+
 
 // Export functions for global use
 window.ChatApp = {

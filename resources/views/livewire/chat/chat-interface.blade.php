@@ -57,8 +57,8 @@
                 @else
                 @php
                 $lastSeen = $otherUser['last_seen_at'] ?? now();
-                $isOnline = $otherUser && isset($otherUser['last_seen_at']) && 
-                           \Carbon\Carbon::parse($otherUser['last_seen_at'])->gt(now()->subMinutes(2));
+                $isOnline = $otherUser && isset($otherUser['last_seen_at']) &&
+                \Carbon\Carbon::parse($otherUser['last_seen_at'])->gt(now()->subMinutes(2));
                 @endphp
                 <span class="online-status {{ $isOnline ? 'online' : 'offline' }}"
                     title="{{ $isOnline ? 'Online' : 'Last seen ' . \Carbon\Carbon::parse($lastSeen)->diffForHumans() }}">
@@ -109,66 +109,85 @@
                 @endif
 
                 <div class="message-content">
-                    @if($message['type'] === 'text')
-                    {!! nl2br(e($message['content'])) !!}
-                    @elseif($message['type'] === 'image' && $message['attachments'])
+                    @if($message['attachments'])
                     @foreach($message['attachments'] as $attachment)
+                    @php
+                    $fileName = $attachment['name'] ?? 'unknown';
+                    $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                    $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+                    $videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
+                    $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'];
+                    $isImage = in_array($extension, $imageExtensions);
+                    $isVideo = in_array($extension, $videoExtensions);
+                    $isAudio = in_array($extension, $audioExtensions);
+                    @endphp
+
+                    @if($isImage)
                     <div class="message-image-container mb-2">
                         @php
                         $imagePath = '/storage/' . $attachment['path'];
-                        $thumbnailPath = isset($attachment['metadata']['thumbnail_path'])
-                        ? '/storage/' . $attachment['metadata']['thumbnail_path']
-                        : $imagePath;
                         @endphp
-                        <a href="{{ $imagePath }}" data-lightbox="chat-images" data-title="{{ $attachment['name'] }}">
-                            <img src="{{ $thumbnailPath }}" alt="{{ $attachment['name'] }}" class="message-image" loading="lazy" style="max-width: 200px; border-radius: 12px;">
+                        <a href="{{ $imagePath }}" data-fancybox="chat-images" data-caption="{{ $attachment['name'] }}" class="attacthment_mesg">
+                            <img src="{{ $imagePath }}" alt="{{ $attachment['name'] }}" class="message-image" loading="lazy" style="max-width: 360px; border-radius: 12px; cursor: pointer;">
                         </a>
                     </div>
-                    @endforeach
-                    @if($message['content'])
-                    <div class="message-caption">{!! nl2br(e($message['content'])) !!}</div>
-                    @endif
-                    @elseif($message['type'] === 'video' && $message['attachments'])
-                    @foreach($message['attachments'] as $attachment)
+                    @elseif($isVideo)
                     <div class="message-video-container mb-2">
-                        <video controls class="message-video" preload="metadata" style="max-width: 200px; border-radius: 12px;">
-                            <source src="/storage/{{ $attachment['path'] }}" type="{{ $attachment['type'] }}">
+                        @php
+                        $videoMimeTypes = [
+                        'mp4' => 'video/mp4',
+                        'avi' => 'video/x-msvideo',
+                        'mov' => 'video/quicktime',
+                        'wmv' => 'video/x-ms-wmv',
+                        'flv' => 'video/x-flv',
+                        'webm' => 'video/webm',
+                        'mkv' => 'video/x-matroska',
+                        '3gp' => 'video/3gpp'
+                        ];
+                        $mimeType = $videoMimeTypes[$extension] ?? 'video/mp4';
+                        @endphp
+                        <video controls class="message-video" preload="metadata" style="max-width: 360px; border-radius: 12px;">
+                            <source src="/storage/{{ $attachment['path'] }}" type="{{ $mimeType }}">
                             Your browser does not support the video tag.
                         </video>
                     </div>
-                    @endforeach
-                    @if($message['content'])
-                    <div class="message-caption">{!! nl2br(e($message['content'])) !!}</div>
-                    @endif
-                    @elseif($message['type'] === 'audio' && $message['attachments'])
-                    @foreach($message['attachments'] as $attachment)
+                    @elseif($isAudio)
                     <div class="message-audio-container mb-2">
+                        @php
+                        $audioMimeTypes = [
+                        'mp3' => 'audio/mpeg',
+                        'wav' => 'audio/wav',
+                        'ogg' => 'audio/ogg',
+                        'aac' => 'audio/aac',
+                        'flac' => 'audio/flac',
+                        'm4a' => 'audio/mp4',
+                        'wma' => 'audio/x-ms-wma'
+                        ];
+                        $mimeType = $audioMimeTypes[$extension] ?? 'audio/mpeg';
+                        @endphp
                         <audio controls preload="metadata">
-                            <source src="/storage/{{ $attachment['path'] }}" type="{{ $attachment['type'] }}">
+                            <source src="/storage/{{ $attachment['path'] }}" type="{{ $mimeType }}">
                             Your browser does not support the audio element.
                         </audio>
                     </div>
-                    @endforeach
-                    @if($message['content'])
-                    <div class="message-caption">{!! nl2br(e($message['content'])) !!}</div>
-                    @endif
-                    @elseif($message['type'] === 'file' && $message['attachments'])
-                    @foreach($message['attachments'] as $attachment)
+                    @else
                     <div class="message-file-container mb-2">
                         <a href="/storage/{{ $attachment['path'] }}" target="_blank" class="message-file-link" rel="noopener noreferrer">
-                            <div class="file-preview" style="max-width: 200px; border-radius: 12px; padding: 8px; background-color: #f0f0f0;">
+                            <div class="file-preview" style="max-width: 360px; border-radius: 12px; padding: 8px; background-color: #f0f0f0;">
                                 <i class="fas fa-file-alt fa-2x text-primary"></i>
                                 <div class="file-info">
-                                    <div class="file-name">{{ $attachment['name'] }}</div>
+                                    <div class="file-name text-dark">{{ $attachment['name'] }}</div>
                                     <div class="file-size text-muted">{{ round($attachment['size'] / 1024, 2) }} KB</div>
                                 </div>
                             </div>
                         </a>
                     </div>
-                    @endforeach
-                    @if($message['content'])
-                    <div class="message-caption">{!! nl2br(e($message['content'])) !!}</div>
                     @endif
+                    @endforeach
+                    @endif
+
+                    @if($message['content'] || empty($message['attachments']))
+                    {!! nl2br(e($message['content'])) !!}
                     @endif
                 </div>
             </div>
@@ -227,32 +246,33 @@
             @foreach($selectedFiles as $index => $file)
             <div class="attachment-preview-item" wire:key="file-{{ $index }}">
                 @php
-                $isUploadedFile = is_object($file) && method_exists($file, 'getClientMimeType');
-                $mimeType = $isUploadedFile ? $file->getClientMimeType() : null;
-                $isImage = $mimeType && str_starts_with($mimeType, 'image/');
-                $isVideo = $mimeType && str_starts_with($mimeType, 'video/');
+                $isUploadedFile = is_object($file) && method_exists($file, 'getClientOriginalName');
+                $fileName = $isUploadedFile ? $file->getClientOriginalName() : (is_string($file) ? basename($file) : 'unknown');
+                $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+                $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
+                $videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
+                $isImage = in_array($extension, $imageExtensions);
+                $isVideo = in_array($extension, $videoExtensions);
                 @endphp
-
                 @if ($isUploadedFile)
                 @if ($isImage)
-                <img src="{{ $file->temporaryUrl() }}" class="preview-image">
+                <img src="{{ $file->temporaryUrl() }}" class="preview-image" alt="{{ $fileName }}">
                 @elseif ($isVideo)
-                <video class="preview-video" controls>
-                    <source src="{{ $file->temporaryUrl() }}" type="{{ $mimeType }}">
+                <video class="preview-video" controls preload="metadata">
+                    <source src="{{ $file->temporaryUrl() }}">
                 </video>
                 @else
                 <div class="preview-file">
                     <i class="fas fa-file-alt fa-3x text-primary"></i>
-                    <div class="file-name">{{ $file->getClientOriginalName() }}</div>
+                    <div class="file-name">{{ $fileName }}</div>
                 </div>
                 @endif
-                <button class="remove-attachment-btn" wire:click="removeFile({{ $index }})">
+                <button class="remove-attachment-btn" wire:click="removeFile({{ $index }})" type="button">
                     <i class="fas fa-times"></i>
                 </button>
                 @endif
             </div>
             @endforeach
-
         </div>
         <div class="attachment-preview-input">
             <textarea wire:model="attachmentCaption" class="form-control" placeholder="Add a caption..." rows="2"></textarea>
@@ -280,7 +300,7 @@
                 wire:model="selectedFiles" accept="video/*">
 
             <!-- Attachment Menu -->
-            <div class="attachment-menu" id="attachmentMenu">
+            <div class="attachment-menu" id="attachmentMenu" style="display: none;">
                 <button type="button" class="attachment-option" onclick="document.getElementById('imageInput').click()">
                     <i class="fas fa-image"></i>
                     <span>Photos</span>
@@ -429,47 +449,7 @@
         cursor: pointer;
     }
 
-    /* Emoji Picker Styles */
-    .emoji-picker-container {
-        position: absolute;
-        bottom: 60px;
-        right: 10px;
-        background: white;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        padding: 10px;
-        display: none;
-        z-index: 1050;
-        width: 280px;
-        max-height: 200px;
-        overflow-y: auto;
-    }
 
-    .emoji-picker-container.show {
-        display: block !important;
-    }
-
-    .emoji-grid {
-        display: grid;
-        grid-template-columns: repeat(8, 1fr);
-        gap: 5px;
-        max-height: 200px;
-        overflow-y: auto;
-    }
-
-    .emoji-option {
-        padding: 5px;
-        text-align: center;
-        cursor: pointer;
-        border-radius: 4px;
-        font-size: 18px;
-        transition: background-color 0.2s;
-    }
-
-    .emoji-option:hover {
-        background-color: #f3f4f6;
-    }
 
     /* Attachment Menu Styles */
     .attachment-menu {
