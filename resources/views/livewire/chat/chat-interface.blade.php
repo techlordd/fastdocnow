@@ -62,7 +62,7 @@
 
             <!-- Options Menu -->
             <div class="dropdown">
-                <button class="btn btn-light btn-sm dropdown-toggle" type="button" id="chatOptionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                <button class="btn btn-light btn-sm px-3" type="button" id="chatOptionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="fas fa-ellipsis-v"></i>
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="chatOptionsDropdown">
@@ -341,6 +341,7 @@
 
 @push('styles')
 <style>
+
     .online-status {
         display: flex;
         align-items: center;

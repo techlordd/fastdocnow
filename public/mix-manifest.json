@@ -1,9 +1,9 @@
 {
-    "/js/app.js": "/js/app.js?id=4178487de346fb977ad80e1f17262906",
-    "/js/chat.js": "/js/chat.js?id=85b961dfca107d1532cd756abe29eeb0",
-    "/js/emoji-picker.js": "/js/emoji-picker.js?id=d41d8cd98f00b204e9800998ecf8427e",
-    "/js/select2.min.js": "/js/select2.min.js?id=9cbcef7f1ca449b8588f787c30b05a85",
-    "/css/emoji-picker.css": "/css/emoji-picker.css?id=68b329da9893e34099c7d8ad5cb9c940",
-    "/css/app.css": "/css/app.css?id=42f2a9375b04c3c0a3e6e4aaa11107f0",
-    "/css/select2.min.css": "/css/select2.min.css?id=e71c39430469a3eea74514a2b48f6536"
+    "/js/app.js": "/js/app.js",
+    "/js/chat.js": "/js/chat.js",
+    "/js/emoji-picker.js": "/js/emoji-picker.js",
+    "/js/select2.min.js": "/js/select2.min.js",
+    "/css/emoji-picker.css": "/css/emoji-picker.css",
+    "/css/app.css": "/css/app.css",
+    "/css/select2.min.css": "/css/select2.min.css"
 }

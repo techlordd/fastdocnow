@@ -26,6 +26,18 @@
             right: -15px;
             top: 20px;
             transform: translatex(40px);
+            padding: 12px 15px;
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .available-contacts-section .btn-primary {
+            width: 100% !important;
         }
     </style>
 
@@ -42,8 +54,7 @@
             </a>
             <div class="d-flex align-items-center gap-2">
                 <div class="dropdown">
-                    <button class="btn btn-light btn-sm d-flex align-items-center" type="button" data-bs-toggle="dropdown">
-
+                    <button class="btn btn-light btn-sm d-flex align-items-center px-3" type="button" data-bs-toggle="dropdown">
                         <span class="d-none d-sm-inline">{{ auth()->user()->first_name }}</span>
                         <i class="fas fa-chevron-down ms-2"></i>
                     </button>
@@ -98,174 +109,165 @@
     <!-- Available Contacts Section -->
     @if(!empty($contacts))
     <div class="px-3 py-3 border-bottom available-contacts-section" wire:ignore>
-        <div class="accordion" id="contactsAccordion">
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="headingOne">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseContacts" aria-expanded="false" aria-controls="collapseContacts">
-                        <h6 class="text-muted mb-0">Available Contacts</h6>
-                    </button>
-                </h2>
-                <div id="collapseContacts" class="accordion-collapse collapse" aria-labelledby="headingOne" data-bs-parent="#contactsAccordion">
-                    <div class="accordion-body">
-                        @foreach($contacts as $contact)
-                        <div class="contact-item mb-2" wire:key="contact-{{ $contact['id'] }}">
-                            <button wire:click="startConversationWithContact({{ $contact['id'] }})"
-                                class="btn w-100 text-start p-3 border rounded contact-btn">
-                                <div class="d-flex align-items-center">
-
-                                    <div class="flex-grow-1 d-">
-                                        <div class="contact-type-badge">
-                                            @if($contact['type'] === 'doctor')
-                                            <span class="badge bg-primary"><i class="fas fa-user-md text-white me-1"></i>Doctor</span>
-                                            @else
-                                            <span class="badge bg-success"><i class="fas fa-headset text-white me-1"></i>Support</span>
-                                            @endif
-                                        </div>
-                                        <div class="contact-name fw-semibold">{{ $contact['name'] }}</div>
-                                        @if($contact['description'])
-                                        <div class="contact-description text-muted small">{{ $contact['description'] }}</div>
-                                        @endif
-                                        @if($contact['assigned_user'])
-                                        <div class="assigned-user small">
-                                            <span class="text-muted">Handled by:</span> {{ $contact['assigned_user']['name'] }}
-                                            @if($contact['assigned_user']['is_online'])
-                                            <span class="badge bg-success ms-1">Online</span>
-                                            @else
-                                            <span class="text-muted small">
-                                                Last seen {{ \Carbon\Carbon::parse($contact['assigned_user']['last_seen_at'])->diffForHumans() }}
-                                            </span>
-                                            @endif
-                                        </div>
-                                        @else
-                                        <div class="text-warning small">
-                                            <i class="fas fa-exclamation-triangle me-1"></i>No staff assigned
-                                        </div>
-                                        @endif
-                                    </div>
-
-                                </div>
-                            </button>
-                        </div>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
-        </div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#newConversationModal">
+            <i class="fas fa-plus me-2"></i> Start New Conversation
+        </button>
     </div>
     @endif
 
     <!-- Active Conversations Section -->
-    <div class="flex-fill overflow-auto custom-scrollbar" wire:poll.10s="loadContactsAndConversations">
-        @if(!empty($conversations))
+    <div wire:poll.10s="loadContactsAndConversations">
+        @if(!empty($conversations) || !empty($conversationSearchTerm))
         <div class="px-3 pt-3 pb-2">
-            <h6 class="text-muted mb-3">Your Conversations</h6>
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h6 class="text-muted mb-0">Your Conversations</h6>
+                <small class="text-muted">({{ count($conversations) }})</small>
+            </div>
+
+            <!-- Search Input -->
+            <div class="conversation-search-container mb-3">
+                <div class="position-relative">
+                    <input type="text"
+                        wire:model.live="conversationSearchTerm"
+                        placeholder="Search conversations..."
+                        class="form-control form-control-sm conversation-search-input">
+                    <i class="fas fa-search position-absolute search-icon"></i>
+                    @if($conversationSearchTerm)
+                    <button type="button"
+                        wire:click="clearConversationSearch"
+                        class="btn btn-sm position-absolute clear-search-btn">
+                        <i class="fas fa-times"></i>
+                    </button>
+                    @endif
+                </div>
+            </div>
         </div>
-        @foreach($conversations as $conversation)
-        <a href="javascript:void(0)"
-            wire:click="selectConversation({{ $conversation['id'] }})"
-            class="conversation-item {{ $activeConversationId == $conversation['id'] ? 'active' : '' }}"
-            wire:key="conversation-{{ $conversation['id'] }}">
-            <!-- Avatar -->
-            <div class="conversation-avatar">
-                @if($conversation['contact_id'] != auth()->user()->id)
-                @if($conversation['contact_type'] === 'doctor')
-                <i class="fas fa-user-md"></i>
-                @elseif($conversation['contact_type'] === 'support')
-                <i class="fas fa-headset"></i>
-                @endif
-                @else
-                <div class="chat-main-avatar">
-                    @php
-                    $otherUserAvatar = $conversation['other_user_avatar']
-                    @endphp
-                    @if($otherUserAvatar)
-                    <img src="{{ $otherUserAvatar }}" alt="{{ $conversation['other_user_name'] }}" width="40px" height="40px">
+        @if(count($conversations) > 0)
+        <div class="flex-fill overflow-auto custom-scrollbar" style="max-height: calc(100vh - 310px);">
+            @foreach($conversations as $conversation)
+            <a href="javascript:void(0)"
+                wire:click="selectConversation({{ $conversation['id'] }})"
+                class="conversation-item {{ $activeConversationId == $conversation['id'] ? 'active' : '' }} {{ !empty($conversationSearchTerm) ? 'search-result' : '' }}"
+                wire:key="conversation-{{ $conversation['id'] }}">
+                <!-- Avatar -->
+                <div class="conversation-avatar">
+                    @if($conversation['contact_id'] != auth()->user()->id)
+                    @if($conversation['contact_type'] === 'doctor')
+                    <i class="fas fa-user-md"></i>
+                    @elseif($conversation['contact_type'] === 'support')
+                    <i class="fas fa-headset"></i>
+                    @endif
                     @else
-                    {{ strtoupper(substr($conversation['other_user_name'] ?? 'U', 0, 1)) }}{{ strtoupper(substr($conversation['other_user_last_name'] ?? 'U', 0, 1)) }}
+                    <div class="chat-main-avatar">
+                        @php
+                        $otherUserAvatar = $conversation['other_user_avatar']
+                        @endphp
+                        @if($otherUserAvatar)
+                        <img src="{{ $otherUserAvatar }}" alt="{{ $conversation['other_user_name'] }}" width="40px" height="40px">
+                        @else
+                        {{ strtoupper(substr($conversation['other_user_name'] ?? 'U', 0, 1)) }}{{ strtoupper(substr($conversation['other_user_last_name'] ?? 'U', 0, 1)) }}
+                        @endif
+                    </div>
                     @endif
                 </div>
-                @endif
-            </div>
 
-            <!-- Conversation Info -->
-            <div class="conversation-info">
-                <div class="d-flex align-items-center justify-content-between">
-                    <div class="conversation-name">
-                        @if($conversation['contact_id'] != auth()->user()->id)
-                        {{ $conversation['contact_name'] }}
-                        @else
-                        {{ $conversation['other_user_name'] }} {{ $conversation['other_user_last_name'] }}
-                        <small class="d-block">@ {{$conversation['contact_name']}}</small>
-                        @endif
+                <!-- Conversation Info -->
+                <div class="conversation-info">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="conversation-name">
+                            @if($conversation['contact_id'] != auth()->user()->id)
+                            {{ $conversation['contact_name'] }}
+                            @else
+                            {{ $conversation['other_user_name'] }} {{ $conversation['other_user_last_name'] }}
+                            <small class="d-block">@ {{$conversation['contact_name']}}</small>
+                            @endif
+                        </div>
+                        @php
+                        if (!function_exists('shortTimeAgo')) {
+                        function shortTimeAgo($time) {
+                        $diff = \Carbon\Carbon::parse($time)->diff(now());
+
+                        if ($diff->y > 0) return $diff->y . 'y ago';
+                        if ($diff->m > 0) return $diff->m . 'mo ago';
+                        if ($diff->d > 0) return $diff->d . 'd ago';
+                        if ($diff->h > 0) return $diff->h . 'h ago';
+                        if ($diff->i > 0) return $diff->i . 'm ago';
+                        if ($diff->s > 0) return $diff->s . 's ago';
+
+                        return 'just now';
+                        }
+                        }
+                        @endphp
+
+                        <div class="conversation-time">
+                            @if(!empty($conversation['last_message_at']))
+                            {{ shortTimeAgo($conversation['last_message_at']) }}
+                            @endif
+                        </div>
                     </div>
-                    @php
-                    if (!function_exists('shortTimeAgo')) {
-                    function shortTimeAgo($time) {
-                    $diff = \Carbon\Carbon::parse($time)->diff(now());
 
-                    if ($diff->y > 0) return $diff->y . 'y ago';
-                    if ($diff->m > 0) return $diff->m . 'mo ago';
-                    if ($diff->d > 0) return $diff->d . 'd ago';
-                    if ($diff->h > 0) return $diff->h . 'h ago';
-                    if ($diff->i > 0) return $diff->i . 'm ago';
-                    if ($diff->s > 0) return $diff->s . 's ago';
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="conversation-preview latest-message">
+                            @if($conversation['latest_message'])
+                            @php $latestMessage = $conversation['latest_message']; @endphp
+                            @if($latestMessage['type'] === 'text')
+                            @if($latestMessage['is_own'])
+                            <span class="text-muted">You: </span>
+                            @endif
+                            {{ Str::limit($latestMessage['content'], 40) }}
+                            @elseif($latestMessage['type'] === 'image')
+                            @if($latestMessage['is_own'])
+                            <span class="text-muted">You: </span>
+                            @endif
+                            <i class="fas fa-image me-1"></i> Photo
+                            @elseif($latestMessage['type'] === 'file')
+                            @if($latestMessage['is_own'])
+                            <span class="text-muted">You: </span>
+                            @endif
+                            <i class="fas fa-paperclip me-1"></i> File
+                            @elseif($latestMessage['type'] === 'audio')
+                            @if($latestMessage['is_own'])
+                            <span class="text-muted">You: </span>
+                            @endif
+                            <i class="fas fa-microphone me-1"></i> Audio
+                            @elseif($latestMessage['type'] === 'video')
+                            @if($latestMessage['is_own'])
+                            <span class="text-muted">You: </span>
+                            @endif
+                            <i class="fas fa-video me-1"></i> Video
+                            @endif
+                            @else
+                            No messages yet
+                            @endif
+                        </div>
 
-                    return 'just now';
-                    }
-                    }
-                    @endphp
-
-                    <div class="conversation-time">
-                        @if(!empty($conversation['last_message_at']))
-                        {{ shortTimeAgo($conversation['last_message_at']) }}
+                        @if($conversation['unread_count'] > 0)
+                        <span class="unread-count badge bg-danger">
+                            {{ $conversation['unread_count'] > 99 ? '99+' : $conversation['unread_count'] }}
+                        </span>
                         @endif
                     </div>
                 </div>
-
-                <div class="d-flex align-items-center justify-content-between">
-                    <div class="conversation-preview latest-message">
-                        @if($conversation['latest_message'])
-                        @php $latestMessage = $conversation['latest_message']; @endphp
-                        @if($latestMessage['type'] === 'text')
-                        @if($latestMessage['is_own'])
-                        <span class="text-muted">You: </span>
-                        @endif
-                        {{ Str::limit($latestMessage['content'], 40) }}
-                        @elseif($latestMessage['type'] === 'image')
-                        @if($latestMessage['is_own'])
-                        <span class="text-muted">You: </span>
-                        @endif
-                        <i class="fas fa-image me-1"></i> Photo
-                        @elseif($latestMessage['type'] === 'file')
-                        @if($latestMessage['is_own'])
-                        <span class="text-muted">You: </span>
-                        @endif
-                        <i class="fas fa-paperclip me-1"></i> File
-                        @elseif($latestMessage['type'] === 'audio')
-                        @if($latestMessage['is_own'])
-                        <span class="text-muted">You: </span>
-                        @endif
-                        <i class="fas fa-microphone me-1"></i> Audio
-                        @elseif($latestMessage['type'] === 'video')
-                        @if($latestMessage['is_own'])
-                        <span class="text-muted">You: </span>
-                        @endif
-                        <i class="fas fa-video me-1"></i> Video
-                        @endif
-                        @else
-                        No messages yet
-                        @endif
-                    </div>
-
-                    @if($conversation['unread_count'] > 0)
-                    <span class="unread-count badge bg-danger">
-                        {{ $conversation['unread_count'] > 99 ? '99+' : $conversation['unread_count'] }}
-                    </span>
-                    @endif
-                </div>
+            </a>
+            @endforeach
+        </div>
+        @else
+        <!-- Empty Search Results -->
+        @if(!empty($conversationSearchTerm))
+        <div class="p-4 text-center">
+            <div class="search-empty-icon mx-auto mb-3">
+                <i class="fas fa-search text-muted"></i>
             </div>
-        </a>
-        @endforeach
+            <h6 class="mb-2 text-muted">No conversations found</h6>
+            <p class="text-muted small mb-3">No conversations match your search for "<strong>{{ $conversationSearchTerm }}</strong>"</p>
+            <button type="button"
+                wire:click="clearConversationSearch"
+                class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-times me-1"></i> Clear search
+            </button>
+        </div>
+        @endif
+        @endif
         @endif
 
         @if(empty($contacts) && empty($conversations))
@@ -404,6 +406,80 @@
     .dropdown-item i {
         width: 16px;
         text-align: center;
+    }
+
+    /* Conversation Search Styles */
+    .conversation-search-container {
+        position: relative;
+    }
+
+    .conversation-search-input {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 8px 35px 8px 35px;
+        font-size: 13px;
+        background: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+
+    .conversation-search-input:focus {
+        border-color: #6600ff;
+        background: white;
+        box-shadow: 0 0 0 0.1rem rgba(102, 0, 255, 0.15);
+        outline: none;
+    }
+
+    .search-icon {
+        top: 50%;
+        left: 12px;
+        transform: translateY(-50%);
+        color: #6c757d;
+        font-size: 12px;
+        pointer-events: none;
+    }
+
+    .clear-search-btn {
+        top: 50%;
+        right: 8px;
+        transform: translateY(-50%);
+        color: #6c757d;
+        background: none;
+        border: none;
+        padding: 4px;
+        line-height: 1;
+        font-size: 10px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+
+    .clear-search-btn:hover {
+        color: #dc3545;
+        background: #f8f9fa;
+    }
+
+    /* Search Empty State */
+    .search-empty-icon {
+        width: 50px;
+        height: 50px;
+        background: #f8f9fa;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 20px;
+    }
+
+    /* Highlight search results */
+    .conversation-item.search-result {
+        background: rgba(102, 0, 255, 0.05);
+        border-left: 3px solid #6600ff;
+    }
+
+    /* Search result counter */
+    .conversation-search-container+.conversation-list .text-muted small {
+        font-size: 11px;
+        color: #6600ff;
+        font-weight: 500;
     }
 </style>
 @endpush

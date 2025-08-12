@@ -16,6 +16,7 @@ class ConversationSidebar extends Component
     public $conversations = [];
     public $conversationsall = [];
     public $activeConversationId = null;
+    public $conversationSearchTerm = '';
 
     public function mount()
     {
@@ -47,7 +48,7 @@ class ConversationSidebar extends Component
 
         // Load existing conversations for current user
         $this->conversationsall = Auth::user()->conversations()->get();
-        $this->conversations = Auth::user()->conversations()
+        $conversationsQuery = Auth::user()->conversations()
             ->with(['contact', 'latestMessage.user', 'participants'])
             ->withCount([
                 'messages as unread_count' => function ($query) {
@@ -58,8 +59,9 @@ class ConversationSidebar extends Component
                 }
             ])
             ->orderByDesc('last_message_at')
-            ->orderByDesc('created_at')
-            ->get()
+            ->orderByDesc('created_at');
+
+        $allConversations = $conversationsQuery->get()
             ->map(function ($conversation) {
                 $otherUser = $conversation->participants
                     ? $conversation->participants->firstWhere('id', '!=', Auth::id())
@@ -91,8 +93,34 @@ class ConversationSidebar extends Component
                     'other_user_last_name' => $otherUser->last_name ?? 'Unknown',
                     'other_user_avatar' => $otherUser->avatar ?? null,
                 ];
-            })
-            ->toArray();
+            });
+
+        // Filter conversations based on search term
+        if (!empty($this->conversationSearchTerm)) {
+            $searchTerm = strtolower($this->conversationSearchTerm);
+            $this->conversations = $allConversations->filter(function ($conversation) use ($searchTerm) {
+                // Search in contact name
+                if (str_contains(strtolower($conversation['contact_name']), $searchTerm)) {
+                    return true;
+                }
+
+                // Search in other user name
+                $fullName = strtolower($conversation['other_user_name'] . ' ' . $conversation['other_user_last_name']);
+                if (str_contains($fullName, $searchTerm)) {
+                    return true;
+                }
+
+                // Search in latest message content
+                if ($conversation['latest_message'] &&
+                    str_contains(strtolower($conversation['latest_message']['content']), $searchTerm)) {
+                    return true;
+                }
+
+                return false;
+            })->values()->toArray();
+        } else {
+            $this->conversations = $allConversations->toArray();
+        }
     }
 
     public function startConversationWithContact($contactId)
@@ -141,6 +169,17 @@ class ConversationSidebar extends Component
     {
         $this->activeConversationId = $conversationId;
         $this->dispatch('conversationSelected', $conversationId);
+    }
+
+    public function clearConversationSearch()
+    {
+        $this->conversationSearchTerm = '';
+        $this->loadContactsAndConversations();
+    }
+
+    public function updatedConversationSearchTerm()
+    {
+        $this->loadContactsAndConversations();
     }
 
     #[On('conversationUpdated')]
