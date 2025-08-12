@@ -2,9 +2,9 @@
 
 /* CSS Variables for Theme System */
 :root {
-    --primary-color: #6600ff;
-    --primary-rgb: 102, 0, 255;
-    --primary-dark: #4400cc;
+    --primary-color: #1267bd;
+    --primary-rgb: rgb(18, 103, 189);
+    --primary-dark: #034b93;
     --bs-font-sans-serif: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
@@ -558,7 +558,7 @@ body {
     right: 2px;
     width: 12px;
     height: 12px;
-    background: #28a745;
+    background: #4b8bc7;
     border: 2px solid white;
     border-radius: 50%;
 }
@@ -640,7 +640,7 @@ body {
 }
 
 .chat-main-info .status {
-    color: #28a745;
+    color: #4b8bc7;
     font-size: 12px;
     margin: 0;
 }
@@ -961,7 +961,6 @@ body {
 @media (max-width: 768px) {
     .chat-sidebar {
         width: 100%;
-        max-width: 350px;
     }
 
     .chat-sidebar.hidden {
@@ -1724,7 +1723,7 @@ body {
 
 /* Success toast */
 #toast-container>.toast-success {
-    border-left-color: #28a745 !important;
+    border-left-color: #4b8bc7 !important;
 }
 
 #toast-container>.toast-success .toast-progress {
@@ -1786,4 +1785,10 @@ body {
     .modal-dialog {
         max-width: 600px;
     }
+}
+
+.accordion-body {
+    max-height: calc(100vh - 200px);
+    overflow-y: scroll;
+    overflow-x: hidden;
 }

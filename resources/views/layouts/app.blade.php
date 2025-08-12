@@ -176,10 +176,9 @@
         <div class="container-fluid px-4">
             <!-- Brand -->
             <a class="navbar-brand d-flex align-items-center" href="{{ route('chat.index') }}">
-                <div class="brand-icon me-2">
-                    <i class="fas fa-comments text-primary fs-4"></i>
+            <div class="brand_logo me-2">
+                    <img src="{{asset('images/FastDocNow-logo.png')}}" alt="">
                 </div>
-                <span class="fw-bold fs-5">{{ config('app.name', 'DocNow Chat') }}</span>
             </a>
 
             <!-- Mobile Toggle -->

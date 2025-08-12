@@ -81,38 +81,6 @@ class MessageController extends Controller
         return response()->json(['message' => 'Message deleted successfully']);
     }
 
-    public function react(Request $request, Message $message)
-    {
-        $request->validate([
-            'emoji' => 'required|string|max:10',
-        ]);
-
-        $user = Auth::user();
-
-        // Check if user is participant in conversation
-        if (!$message->conversation->participants()->where('user_id', $user->id)->exists()) {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        // Toggle reaction
-        $existingReaction = $message->reactions()
-                                   ->where('user_id', $user->id)
-                                   ->where('emoji', $request->emoji)
-                                   ->first();
-
-        if ($existingReaction) {
-            $existingReaction->delete();
-            $action = 'removed';
-        } else {
-            $message->reactions()->create([
-                'user_id' => $user->id,
-                'emoji' => $request->emoji,
-            ]);
-            $action = 'added';
-        }
-
-        return response()->json(['message' => "Reaction {$action} successfully"]);
-    }
 
     public function markAsRead(Message $message)
     {

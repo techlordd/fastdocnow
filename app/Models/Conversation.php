@@ -55,11 +55,9 @@ class Conversation extends Model
     }
 
     /**
-     * The conversation types.
+     * The conversation type (contact conversations only).
      */
-    const TYPE_PRIVATE = 'private';
-    const TYPE_GROUP = 'group';
-    const TYPE_CHANNEL = 'channel';
+    const TYPE_CONTACT = 'contact';
 
     /**
      * Get the participants of the conversation.
@@ -112,19 +110,11 @@ class Conversation extends Model
     }
 
     /**
-     * Scope for private conversations.
+     * Scope for contact conversations.
      */
-    public function scopePrivate($query)
+    public function scopeContact($query)
     {
-        return $query->where('type', self::TYPE_PRIVATE);
-    }
-
-    /**
-     * Scope for group conversations.
-     */
-    public function scopeGroup($query)
-    {
-        return $query->where('type', self::TYPE_GROUP);
+        return $query->where('type', self::TYPE_CONTACT);
     }
 
     /**
@@ -150,15 +140,15 @@ class Conversation extends Model
      */
     public function getDisplayName(User $user)
     {
-        if ($this->type === self::TYPE_PRIVATE) {
-            $otherParticipant = $this->participants()
-                ->where('user_id', '!=', $user->id)
-                ->first();
-
-            return $otherParticipant ? $otherParticipant->name : 'Unknown User';
+        if ($this->contact) {
+            return $this->contact->first_name . ' ' . $this->contact->last_name;
         }
 
-        return $this->title ?: 'Group Chat';
+        $otherParticipant = $this->participants()
+            ->where('user_id', '!=', $user->id)
+            ->first();
+
+        return $otherParticipant ? $otherParticipant->name : 'Unknown Contact';
     }
 
     /**
@@ -170,17 +160,15 @@ class Conversation extends Model
             return asset('storage/' . $this->avatar);
         }
 
-        if ($this->type === self::TYPE_PRIVATE) {
-            $otherParticipant = $this->participants()
-                ->where('user_id', '!=', $user->id)
-                ->first();
-
-            return $otherParticipant ? $otherParticipant->avatar_url : null;
+        if ($this->contact && $this->contact->avatar) {
+            return asset('storage/' . $this->contact->avatar);
         }
 
-        // Generate group avatar
-        $name = urlencode($this->getDisplayName($user));
-        return "https://ui-avatars.com/api/?name={$name}&size=200&background=007bff&color=fff&bold=true";
+        $otherParticipant = $this->participants()
+            ->where('user_id', '!=', $user->id)
+            ->first();
+
+        return $otherParticipant ? $otherParticipant->avatar_url : null;
     }
 
     /**
@@ -264,62 +252,33 @@ class Conversation extends Model
     }
 
     /**
-     * Find or create a private conversation between two users.
+     * Find or create a contact conversation.
      */
-    public static function findOrCreatePrivate(User $user1, User $user2)
+    public static function findOrCreateContact(User $user, Contact $contact)
     {
-        // Look for existing private conversation between these users
-        $conversation = self::private()
-            ->whereHas('participants', function ($query) use ($user1) {
-                $query->where('user_id', $user1->id);
-            })
-            ->whereHas('participants', function ($query) use ($user2) {
-                $query->where('user_id', $user2->id);
-            })
-            ->whereDoesntHave('participants', function ($query) use ($user1, $user2) {
-                $query->whereNotIn('user_id', [$user1->id, $user2->id]);
+        // Look for existing conversation with this contact
+        $conversation = self::contact()
+            ->where('contact_id', $contact->id)
+            ->whereHas('participants', function ($query) use ($user) {
+                $query->where('user_id', $user->id);
             })
             ->first();
 
         if (!$conversation) {
             $conversation = self::create([
-                'type' => self::TYPE_PRIVATE,
-                'created_by' => $user1->id,
+                'type' => self::TYPE_CONTACT,
+                'contact_id' => $contact->id,
+                'title' => $contact->first_name . ' ' . $contact->last_name,
+                'created_by' => $user->id,
                 'is_active' => true,
             ]);
 
-            $conversation->addParticipant($user1);
-            $conversation->addParticipant($user2);
+            $conversation->addParticipant($user);
         }
 
         return $conversation;
     }
 
-    /**
-     * Create a group conversation.
-     */
-    public static function createGroup(User $creator, array $participantIds, $title = null, $description = null)
-    {
-        $conversation = self::create([
-            'title' => $title,
-            'description' => $description,
-            'type' => self::TYPE_GROUP,
-            'created_by' => $creator->id,
-            'is_active' => true,
-        ]);
-
-        // Add creator as admin
-        $conversation->addParticipant($creator, 'admin');
-
-        // Add other participants
-        foreach ($participantIds as $participantId) {
-            if ($participantId != $creator->id) {
-                $conversation->addParticipant(User::find($participantId));
-            }
-        }
-
-        return $conversation;
-    }
 
     /**
      * Get conversation settings.

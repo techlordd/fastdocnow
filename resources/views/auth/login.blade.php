@@ -3,20 +3,26 @@
 @section('title', '| Sign In')
 
 @section('content')
-<div class="min-vh-100 d-flex align-items-center justify-content-center p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+<style>
+    .btn-success {
+        --bs-btn-bg: #2477c8;
+        --bs-btn-hover-bg: #0b578c;
+    }
+</style>
+<div class="min-vh-100 d-flex align-items-center justify-content-center p-4" style="background: #fff;">
     <div class="bg-white rounded-4 shadow-lg overflow-hidden w-100 d-flex" style="max-width: 1000px; min-height: 700px;">
         <div class="row g-0">
             <!-- Left Side - Branding -->
-            <div class="col-md-5 d-flex flex-column justify-content-center p-5 text-white position-relative" style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%);">
+            <div class="col-md-5 d-flex flex-column justify-content-center p-5 text-white position-relative" style="background: linear-gradient(135deg, #2a86e4 0%, #0b609a 100%);">
                 <div class="position-absolute top-0 start-0 w-100 h-100" style="background: rgba(0,0,0,0.1); z-index: 1;"></div>
                 <div class="position-relative" style="z-index: 2;">
-                    <div class="d-flex align-items-center mb-4">
+                    <div class="d-flex align-items-center mb-4 justify-content-center justify-sm-content-start ">
                         <div class="d-flex align-items-center justify-content-center me-3 rounded-3" style="width: 50px; height: 50px; background: rgba(255,255,255,0.2);">
                             <i class="fas fa-comments fs-4"></i>
                         </div>
                         <h1 class="h2 mb-0 fw-bold">Welcome Back</h1>
                     </div>
-                    <p class="fs-5 mb-4 opacity-75">
+                    <p class="fs-5 mb-4 opacity-75 text-center text-sm-start">
                         Sign in to continue your conversations with DocNow Chat. Stay connected and productive.
                     </p>
                     <div class="d-none d-md-block">
@@ -45,46 +51,49 @@
             <!-- Right Side - Login Form -->
             <div class="col-md-7 d-flex flex-column justify-content-center p-4">
                 <div class="text-center mb-4">
-                    <h2 class="fw-semibold mb-2">Sign In to DocNow</h2>
+                    <h2 class="fw-semibold mb-2 d-flex align-items-center justify-content-center">Sign In to <div class="brand_logo ms-2">
+                            <img src="{{asset('images/FastDocNow-logo.png')}}" alt="">
+                        </div>
+                    </h2>
                     <p class="text-muted mb-0">Use your credentials to access your account</p>
                 </div>
 
                 @if ($errors->any())
-                    <div class="alert alert-danger">
-                        <ul class="mb-0">
-                            @foreach ($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
+                <div class="alert alert-danger">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
                 @endif
 
                 <form method="POST" action="{{ route('login') }}">
                     @csrf
                     <div class="mb-3">
                         <label for="email" class="form-label fw-medium">Email Address</label>
-                        <input type="email" 
-                               class="form-control" 
-                               id="email" 
-                               name="email" 
-                               value="{{ old('email') }}"
-                               placeholder="you@example.com" 
-                               required>
+                        <input type="email"
+                            class="form-control"
+                            id="email"
+                            name="email"
+                            value="{{ old('email') }}"
+                            placeholder="you@example.com"
+                            required>
                     </div>
 
                     <div class="mb-3">
                         <label for="password" class="form-label fw-medium">Password</label>
                         <div class="position-relative">
-                            <input type="password" 
-                                   class="form-control" 
-                                   id="password" 
-                                   name="password" 
-                                   placeholder="Enter your password" 
-                                   required>
-                            <button type="button" 
-                                    class="btn position-absolute top-50 end-0 translate-middle-y pe-3" 
-                                    onclick="togglePassword()"
-                                    style="border: none; background: none;">
+                            <input type="password"
+                                class="form-control"
+                                id="password"
+                                name="password"
+                                placeholder="Enter your password"
+                                required>
+                            <button type="button"
+                                class="btn position-absolute top-50 end-0 translate-middle-y pe-3"
+                                onclick="togglePassword()"
+                                style="border: none; background: none;">
                                 <i class="fas fa-eye" id="toggleIcon"></i>
                             </button>
                         </div>
@@ -105,11 +114,11 @@
                     </button>
                 </form>
 
-                
+
 
                 <div class="text-center">
                     <span class="text-muted">Don't have an account? </span>
-                    <a href="{{ route('signup') }}" class="text-decoration-none fw-semibold" style="color: #28a745;">Create one now</a>
+                    <a href="{{ route('signup') }}" class="text-decoration-none fw-semibold" style="color: #4b8bc7;">Create one now</a>
                 </div>
             </div>
         </div>

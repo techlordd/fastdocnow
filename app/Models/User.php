@@ -127,10 +127,7 @@ class User extends Authenticatable
                     ->withTimestamps();
     }
 
-    public function messageReactions()
-    {
-        return $this->hasMany(MessageReaction::class);
-    }
+
 
     public function messageReadReceipts()
     {

@@ -40,7 +40,7 @@ class ChatInterface extends Component
 
     public function loadConversation($conversationId)
     {
-        $this->conversation = Conversation::with(['participants', 'messages.user', 'messages.reactions'])
+        $this->conversation = Conversation::with(['participants', 'messages.user', 'contact'])
             ->where('id', $conversationId)
             ->whereHas('participants', function($query) {
                 $query->where('user_id', Auth::id());
@@ -149,33 +149,22 @@ class ChatInterface extends Component
         session()->flash('message', 'Conversation marked as unread.');
     }
 
-    public function leaveGroup()
-    {
-        if (!$this->conversation || $this->conversation->type !== 'group') return;
 
-        // Remove user from conversation participants
-        $this->conversation->participants()->detach(Auth::id());
-
-        // If no participants left, delete the conversation
-        if ($this->conversation->participants()->count() === 0) {
-            $this->conversation->delete();
-        }
-
-        $this->dispatch('leftGroup', ['id' => $this->conversation->id]);
-        $this->clearConversation();
-
-        session()->flash('message', 'You have left the group.');
-    }
 
     public function loadMessages()
     {
         if (!$this->conversation) return;
 
         $this->messages = $this->conversation->messages()
-            ->with(['user', 'reactions.user'])
+            ->with(['user'])
             ->orderBy('created_at', 'asc')
             ->get()
             ->toArray();
+    }
+
+    public function refreshMessages()
+    {
+        $this->loadMessages();
     }
 
     public function sendMessage()
@@ -203,7 +192,7 @@ class ChatInterface extends Component
             ]);
 
             // Load relationships for broadcasting
-            $message->load('user', 'reactions');
+            $message->load('user');
 
             // Update conversation timestamp
             $this->conversation->touch();
@@ -269,28 +258,7 @@ class ChatInterface extends Component
         $this->dispatch('success', 'Message deleted successfully!');
     }
 
-    public function toggleReaction($messageId, $emoji)
-    {
-        $message = Message::find($messageId);
-        if (!$message) return;
 
-        $existingReaction = $message->reactions()
-            ->where('user_id', Auth::id())
-            ->where('emoji', $emoji)
-            ->first();
-
-        if ($existingReaction) {
-            $existingReaction->delete();
-        } else {
-            $message->reactions()->create([
-                'user_id' => Auth::id(),
-                'emoji' => $emoji,
-            ]);
-        }
-
-        $this->loadMessages();
-        $this->dispatch('reactionToggled', ['id' => $messageId, 'emoji' => $emoji]);
-    }
 
     public function updatedMessageText()
     {

@@ -1,4 +1,4 @@
-<div class="chat-main" id="chatMain">
+<div class="chat-main" id="chatMain" wire:id="chat-interface">
     <!-- Flash Messages -->
     @if (session()->has('message'))
     <div class="alert alert-success alert-dismissible fade show m-3" role="alert">
@@ -25,41 +25,35 @@
     </div>
     @else
     <!-- Chat Header -->
-    <div class="chat-main-header" wire:poll.60s="refreshConversationData">
+    <div class="chat-main-header">
 
         <div class="chat-main-avatar">
-            @if($conversation['type'] === 'group')
-            <i class="fas fa-users"></i>
-            @else
             @php
+            // For contact conversations, show contact or other participant info
+            $contactName = $conversation['contact']['first_name'] ?? '';
+            $contactLastName = $conversation['contact']['last_name'] ?? '';
+            $contactAvatar = $conversation['contact']['avatar'] ?? null;
 
-            $otherUser = collect($conversation['participants'])
-            ->first(fn($user) => $user['id'] !== auth()->id());
+            if (!$contactName) {
+                $otherUser = collect($conversation['participants'])
+                ->first(fn($user) => $user['id'] !== auth()->id());
+                $contactName = $otherUser['first_name'] ?? 'U';
+                $contactLastName = $otherUser['last_name'] ?? 'U';
+                $contactAvatar = $otherUser['avatar'] ?? null;
+            }
             @endphp
-            @if($otherUser && isset($otherUser['avatar']))
-            <img src="{{ $otherUser['avatar'] }}" alt="{{ $otherUser['first_name'] }}">
+            @if($contactAvatar)
+            <img src="{{ asset('storage/' . $contactAvatar) }}" alt="{{ $contactName }}">
             @else
-            {{ strtoupper(substr($otherUser['first_name'] ?? 'U', 0, 1)) }}{{ strtoupper(substr($otherUser['last_name'] ?? 'U', 0, 1)) }}
-            @endif
+            {{ strtoupper(substr($contactName, 0, 1)) }}{{ strtoupper(substr($contactLastName, 0, 1)) }}
             @endif
         </div>
         <div class="chat-main-info">
             <h4>
-                @if($conversation['type'] === 'group')
-                {{ $conversation['title'] ?? 'Group Chat' }}
-                @else
-                {{ $otherUser['first_name'] ?? 'Unknown' }} {{ $otherUser['last_name'] ?? 'User' }}
-                @endif
+                {{ $contactName }} {{ $contactLastName }}
             </h4>
             <p class="status">
-                <span class="online-status" id="user-status-{{ $otherUser['id'] }}">
-                    <i class="fas fa-circle"></i>
-                    @if($otherUser['is_online'])
-                        Online
-                    @else
-                        Last seen {{ \Carbon\Carbon::parse($otherUser['last_seen_at'])->diffForHumans() }}
-                    @endif
-                </span>
+                <span class="text-muted">Contact Conversation</span>
             </p>
             
             
@@ -88,7 +82,7 @@
     </div>
 
     <!-- Messages Area -->
-    <div class="chat-messages custom-scrollbar position-relative" wire:poll.10s="loadMessages">
+    <div class="chat-messages custom-scrollbar position-relative" wire:poll.3s="refreshMessages">
         @forelse($messages as $message)
         <div class="message-group mb-3" wire:key="message-{{ $message['id'] }}">
             <div class="message {{ $message['user_id'] === auth()->id() ? 'sent' : '' }}">
@@ -211,7 +205,6 @@
         <button id="scrollToBottomBtn"
             class="btn btn-primary rounded-circle position-absolute"
             style="bottom: 20px; right: 20px; width: 50px; height: 50px; display: none; z-index: 10;"
-            onclick="scrollToBottom()"
             title="Scroll to bottom">
             <i class="fas fa-chevron-down"></i>
         </button>
@@ -597,6 +590,157 @@
     /* Fix for Bootstrap dropdown not working */
     .dropdown-menu {
         z-index: 1050;
+    }
+
+    /* Toast notification styles */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        max-width: 400px;
+    }
+
+    .message-toast {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+        margin-bottom: 12px;
+        overflow: hidden;
+        border: 1px solid #e5e7eb;
+        animation: slideInRight 0.3s ease-out;
+    }
+
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    .toast-header {
+        display: flex;
+        align-items: center;
+        padding: 16px;
+        border-bottom: 1px solid #f3f4f6;
+        position: relative;
+    }
+
+    .toast-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #6600ff 0%, #4400cc 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 600;
+        margin-right: 12px;
+        font-size: 14px;
+        flex-shrink: 0;
+    }
+
+    .toast-avatar img {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .toast-content {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .toast-title {
+        font-weight: 600;
+        color: #111827;
+        font-size: 14px;
+        margin-bottom: 4px;
+    }
+
+    .toast-message {
+        color: #6b7280;
+        font-size: 13px;
+        line-height: 1.4;
+        word-break: break-word;
+    }
+
+    .toast-close {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: none;
+        border: none;
+        color: #9ca3af;
+        cursor: pointer;
+        font-size: 12px;
+        padding: 4px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+    }
+
+    .toast-close:hover {
+        background-color: #f3f4f6;
+        color: #6b7280;
+    }
+
+    .toast-actions {
+        padding: 12px 16px;
+        background: #f9fafb;
+        border-top: 1px solid #f3f4f6;
+    }
+
+    .toast-action-btn {
+        background: #6600ff;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+        width: 100%;
+    }
+
+    .toast-action-btn:hover {
+        background: #5500dd;
+    }
+
+    /* Sidebar toast specific styles */
+    .sidebar-toast {
+        border-left: 4px solid #22c55e;
+    }
+
+    .sidebar-toast .toast-subtitle {
+        font-size: 12px;
+        color: #6b7280;
+        margin-bottom: 2px;
+    }
+
+    .sidebar-toast .toast-title {
+        font-weight: 600;
+        color: #059669;
+        font-size: 14px;
+        margin-bottom: 2px;
+    }
+
+    @media (max-width: 480px) {
+        .toast-container {
+            right: 12px;
+            left: 12px;
+            max-width: none;
+        }
+
+        .message-toast {
+            margin-bottom: 8px;
+        }
     }
 
     /* Message display improvements */

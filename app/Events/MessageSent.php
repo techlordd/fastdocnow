@@ -46,17 +46,6 @@ class MessageSent implements ShouldBroadcast
                     'last_name' => $this->message->user->last_name,
                     'avatar' => $this->message->user->avatar ?? null,
                 ] : null,
-                'reactions' => $this->message->reactions->map(function($reaction) {
-                    return [
-                        'id' => $reaction->id,
-                        'user_id' => $reaction->user_id,
-                        'emoji' => $reaction->emoji,
-                        'user' => [
-                            'id' => $reaction->user->id,
-                            'first_name' => $reaction->user->first_name,
-                        ]
-                    ];
-                }),
             ]
         ];
     }

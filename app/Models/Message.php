@@ -105,13 +105,6 @@ class Message extends Model
         return $this->hasMany(MessageReadReceipt::class);
     }
 
-    /**
-     * Get the reactions for this message.
-     */
-    public function reactions()
-    {
-        return $this->hasMany(MessageReaction::class);
-    }
 
     /**
      * Scope for text messages.
@@ -175,58 +168,6 @@ class Message extends Model
         return $this->readReceipts()->where('user_id', $user->id)->exists();
     }
 
-    /**
-     * Add a reaction to this message.
-     */
-    public function addReaction(User $user, $emoji)
-    {
-        return $this->reactions()->updateOrCreate([
-            'user_id' => $user->id,
-            'emoji' => $emoji,
-        ]);
-    }
-
-    /**
-     * Remove a reaction from this message.
-     */
-    public function removeReaction(User $user, $emoji)
-    {
-        return $this->reactions()
-            ->where('user_id', $user->id)
-            ->where('emoji', $emoji)
-            ->delete();
-    }
-
-    /**
-     * Toggle a reaction on this message.
-     */
-    public function toggleReaction(User $user, $emoji)
-    {
-        $existing = $this->reactions()
-            ->where('user_id', $user->id)
-            ->where('emoji', $emoji)
-            ->first();
-
-        if ($existing) {
-            $existing->delete();
-            return false; // Removed
-        } else {
-            $this->addReaction($user, $emoji);
-            return true; // Added
-        }
-    }
-
-    /**
-     * Get reaction counts for this message.
-     */
-    public function getReactionCounts()
-    {
-        return $this->reactions()
-            ->selectRaw('emoji, count(*) as count')
-            ->groupBy('emoji')
-            ->pluck('count', 'emoji')
-            ->toArray();
-    }
 
     /**
      * Get formatted content for display.
