@@ -1,4 +1,4 @@
-<div class="chat-sidebar">
+<div class="chat-sidebar" wire:key="conversation_sidebar">
     <style>
         .navbar-expand-lg {
             display: none !important;
@@ -114,7 +114,6 @@
         </button>
     </div>
     @endif
-
     <!-- Active Conversations Section -->
     <div wire:poll.10s="loadContactsAndConversations">
         @if(!empty($conversations) || !empty($conversationSearchTerm))

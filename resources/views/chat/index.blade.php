@@ -41,6 +41,15 @@
                 modalInstance = new bootstrap.Modal(modalEl);
             }
 
+            let sidebarEl = document.querySelector('[wire\\:key="conversation_sidebar"]');
+            if (sidebarEl) {
+                let component = Livewire.find(sidebarEl.getAttribute('wire:id'));
+                if (component) {
+                    let id = parseInt(event.detail, 10); // ensures only the number
+                    component.set('activeConversationId', id);
+                }
+            }
+
             modalInstance.hide();
         });
     });
