@@ -18,7 +18,7 @@
             @if(count($this->availableContacts) > 0)
             <div class="row g-3">
                 @foreach($this->availableContacts as $contact)
-                <div class="col-md-6 col-lg-4" wire:key="contact-{{ $contact['id'] }}">
+                <div class="col-md-6 col-lg-4" wire:key="contact-{{ $contact['id'] }}" >
                     <div class="contact-card {{ $selectedContact == $contact['id'] ? 'selected' : '' }}"
                         wire:click="selectContact({{ $contact['id'] }})">
 

@@ -21,6 +21,7 @@ class NewConversationModal extends Component
     public function selectContact($contactId)
     {
         $this->selectedContact = $contactId;
+        $this->createConversation();
     }
 
     public function createConversation()
@@ -48,6 +49,7 @@ class NewConversationModal extends Component
 
         if ($existingConversation) {
             $this->dispatch('conversationCreated', $existingConversation->id);
+            $this->dispatch('conversationSelected', $existingConversation->id);
             $this->dispatch('success', 'Switched to existing conversation with ' . $contact->name);
             $this->resetModal();
             return;
@@ -66,9 +68,12 @@ class NewConversationModal extends Component
         $conversation->addParticipant($contact->assignedUser);
 
         $this->dispatch('conversationCreated', $conversation->id);
+        $this->dispatch('conversationSelected', $conversation->id);
         $this->dispatch('success', 'Conversation started with ' . $contact->name);
         $this->resetModal();
     }
+
+
 
     private function resetModal()
     {
@@ -84,7 +89,7 @@ class NewConversationModal extends Component
         if ($this->searchTerm) {
             $query->where(function ($q) {
                 $q->where('name', 'like', '%' . $this->searchTerm . '%')
-                  ->orWhere('description', 'like', '%' . $this->searchTerm . '%');
+                    ->orWhere('description', 'like', '%' . $this->searchTerm . '%');
             });
         }
 

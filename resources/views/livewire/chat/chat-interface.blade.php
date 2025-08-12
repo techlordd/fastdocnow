@@ -53,7 +53,14 @@
                 {{ $contactName }} {{ $contactLastName }}
             </h4>
             <p class="status">
-                <span class="text-muted">Contact Conversation</span>
+            <span class="online-status" id="user-status-{{ $otherUser['id'] }}">
+                    <i class="fas fa-circle"></i>
+                    @if($otherUser['is_online'])
+                        Online
+                    @else
+                        Last seen {{ \Carbon\Carbon::parse($otherUser['last_seen_at'])->diffForHumans() }}
+                    @endif
+                </span>
             </p>
             
             

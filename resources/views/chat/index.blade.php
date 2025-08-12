@@ -31,7 +31,20 @@
 <!-- Notification Container -->
 <div id="notification-container" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>
 
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        window.addEventListener('conversationCreated', function(event) {
+            let modalEl = document.getElementById('newConversationModal');
+            let modalInstance = bootstrap.Modal.getInstance(modalEl);
 
+            if (!modalInstance) {
+                modalInstance = new bootstrap.Modal(modalEl);
+            }
+
+            modalInstance.hide();
+        });
+    });
+</script>
 
 @push('styles')
 <style>
@@ -40,37 +53,37 @@
         height: 100vh;
         overflow: hidden;
     }
-    
+
     .chat-screen {
         height: 100vh;
         display: flex;
     }
-    
+
     /* Loading states for Livewire */
     [wire\:loading] {
         opacity: 0.6;
         pointer-events: none;
     }
-    
+
     .spinner-border-sm {
         width: 1rem;
         height: 1rem;
     }
-    
+
     /* File upload progress */
     [wire\:loading][wire\:target="selectedFiles"] {
         opacity: 1;
     }
-    
+
     /* Smooth transitions for message updates */
     .message-group {
         transition: all 0.3s ease;
     }
-    
+
     .conversation-item {
         transition: all 0.2s ease;
     }
-    
+
     .conversation-item:hover {
         transform: translateX(2px);
     }
