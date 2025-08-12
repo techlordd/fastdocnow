@@ -105,25 +105,7 @@
                     </button>
                 </form>
 
-                <div class="text-center position-relative my-3">
-                    <hr>
-                    <span class="position-absolute top-50 start-50 translate-middle bg-white px-3 text-muted small">or sign in with</span>
-                </div>
-
-                <div class="row g-2 mb-4">
-                    <div class="col-6">
-                        <button type="button" class="btn btn-outline-secondary w-100">
-                            <i class="fab fa-google me-2"></i>
-                            Google
-                        </button>
-                    </div>
-                    <div class="col-6">
-                        <button type="button" class="btn btn-outline-secondary w-100">
-                            <i class="fab fa-github me-2"></i>
-                            GitHub
-                        </button>
-                    </div>
-                </div>
+                
 
                 <div class="text-center">
                     <span class="text-muted">Don't have an account? </span>

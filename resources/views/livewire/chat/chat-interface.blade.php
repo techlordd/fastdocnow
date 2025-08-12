@@ -51,21 +51,17 @@
                 {{ $otherUser['first_name'] ?? 'Unknown' }} {{ $otherUser['last_name'] ?? 'User' }}
                 @endif
             </h4>
-            <p class="status">
-                @if($conversation['type'] === 'group')
-                {{ count($conversation['participants']) + 1 }} members
-                @else
-                @php
+            @php
                 $lastSeen = $otherUser['last_seen_at'] ?? now();
                 $isOnline = $otherUser && isset($otherUser['last_seen_at']) &&
                 \Carbon\Carbon::parse($otherUser['last_seen_at'])->gt(now()->subMinutes(2));
-                @endphp
+            @endphp
+            <p class="status user-status-indicator {{ $isOnline ? 'online' : 'offline' }}" data-user-id="{{ $otherUser['id'] }}">
                 <span class="online-status {{ $isOnline ? 'online' : 'offline' }}"
                     title="{{ $isOnline ? 'Online' : 'Last seen ' . \Carbon\Carbon::parse($lastSeen)->diffForHumans() }}">
                     <i class="fas fa-circle"></i>
                     {{ $isOnline ? 'Online' : 'Last seen ' . \Carbon\Carbon::parse($lastSeen)->diffForHumans() }}
                 </span>
-                @endif
             </p>
         </div>
         <div class="ms-auto d-flex align-items-center gap-2">

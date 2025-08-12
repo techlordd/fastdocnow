@@ -35,6 +35,19 @@ try {
                 },
             },
         });
+
+        // Listen for online status updates
+        window.Echo.join('user.online')
+            .here((users) => {
+                updateOnlineStatus(users.map(u => u.id));
+            })
+            .joining((user) => {
+                updateOnlineStatus([user.id], true);
+            })
+            .leaving((user) => {
+                updateOnlineStatus([user.id], false);
+            });
+
     } else {
         console.warn('No real-time broadcasting configuration found. Echo will not be initialized.');
     }
@@ -132,14 +145,49 @@ window.addEventListener('offline', function() {
 // Online presence tracking
 function updateOnlinePresence() {
     if (document.querySelector('meta[name="api-token"]')?.getAttribute('content')) {
-        window.api.post('/api/user/presence', { online: true }).catch(() => {
+        window.axios.post('/api/user/presence', { online: true }).catch(() => {
             // Silently fail - user might not be authenticated
         });
     }
 }
 
-// Update presence every 30 seconds
-setInterval(updateOnlinePresence, 30000);
+// Function to update user status indicators on the page
+function updateOnlineStatus(userIds, isOnline = true) {
+    userIds.forEach(userId => {
+        const indicators = document.querySelectorAll(`.user-status-indicator[data-user-id="${userId}"]`);
+        indicators.forEach(indicator => {
+            if (isOnline) {
+                indicator.classList.add('online');
+                indicator.classList.remove('offline');
+            } else {
+                indicator.classList.remove('online');
+                indicator.classList.add('offline');
+            }
+        });
+    });
+}
+
+// Throttle function to limit how often a function is called
+function throttle(func, limit) {
+    let inThrottle;
+    return function() {
+        const args = arguments;
+        const context = this;
+        if (!inThrottle) {
+            func.apply(context, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+}
+
+// Update presence on user activity
+const throttledUpdate = throttle(updateOnlinePresence, 20000);
+window.addEventListener('mousemove', throttledUpdate);
+window.addEventListener('keydown', throttledUpdate);
+window.addEventListener('scroll', throttledUpdate);
+window.addEventListener('click', throttledUpdate);
+
 
 // Update presence when page becomes visible
 document.addEventListener('visibilitychange', () => {

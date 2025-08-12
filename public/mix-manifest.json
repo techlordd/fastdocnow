@@ -2,6 +2,8 @@
     "/js/app.js": "/js/app.js",
     "/js/chat.js": "/js/chat.js",
     "/js/emoji-picker.js": "/js/emoji-picker.js",
+    "/js/select2.min.js": "/js/select2.min.js",
     "/css/emoji-picker.css": "/css/emoji-picker.css",
-    "/css/app.css": "/css/app.css"
+    "/css/app.css": "/css/app.css",
+    "/css/select2.min.css": "/css/select2.min.css"
 }

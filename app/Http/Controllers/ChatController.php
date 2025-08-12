@@ -118,7 +118,7 @@ class ChatController extends Controller
     }
 
     public function getData(Conversation $conversation)
-    {
+    {   
         $user = Auth::user();
 
         // Check if user is participant

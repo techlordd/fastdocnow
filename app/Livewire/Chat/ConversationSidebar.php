@@ -70,7 +70,9 @@ class ConversationSidebar extends Component
 
                 return [
                     'id' => $conversation->id,
-                    'contact_id' => $conversation->contact_id,
+                    'contact_id' => $conversation->contact && $conversation->contact->assignedUser
+                    ? $conversation->contact->assignedUser->id
+                    : null,
                     'contact_name' => optional($conversation->contact)->name ?? 'Unknown Contact',
                     'contact_type' => optional($conversation->contact)->type ?? 'unknown',
 

@@ -126,7 +126,10 @@
                                         <div class="contact-description text-muted small">{{ $contact['description'] }}</div>
                                         @endif
                                         @if($contact['assigned_user'])
-                                        <div class="assigned-user small">
+                                        @php
+                                            $isOnline = $contact['assigned_user'] && isset($contact['assigned_user']['last_seen_at']) && \Carbon\Carbon::parse($contact['assigned_user']['last_seen_at'])->gt(now()->subMinutes(2));
+                                        @endphp
+                                        <div class="assigned-user small user-status-indicator {{ $isOnline ? 'online' : 'offline' }}" data-user-id="{{ $contact['assigned_user']['id'] }}">
                                             <span class="text-muted">Handled by:</span> {{ $contact['assigned_user']['name'] }}
                                             @if($contact['assigned_user']['is_online'])
                                             <span class="badge bg-success ms-1">Online</span>
@@ -199,27 +202,27 @@
                         @endif
                     </div>
                     @php
-    if (!function_exists('shortTimeAgo')) {
-        function shortTimeAgo($time) {
-            $diff = \Carbon\Carbon::parse($time)->diff(now());
+                    if (!function_exists('shortTimeAgo')) {
+                    function shortTimeAgo($time) {
+                    $diff = \Carbon\Carbon::parse($time)->diff(now());
 
-            if ($diff->y > 0) return $diff->y . 'y ago';
-            if ($diff->m > 0) return $diff->m . 'mo ago';
-            if ($diff->d > 0) return $diff->d . 'd ago';
-            if ($diff->h > 0) return $diff->h . 'h ago';
-            if ($diff->i > 0) return $diff->i . 'm ago';
-            if ($diff->s > 0) return $diff->s . 's ago';
+                    if ($diff->y > 0) return $diff->y . 'y ago';
+                    if ($diff->m > 0) return $diff->m . 'mo ago';
+                    if ($diff->d > 0) return $diff->d . 'd ago';
+                    if ($diff->h > 0) return $diff->h . 'h ago';
+                    if ($diff->i > 0) return $diff->i . 'm ago';
+                    if ($diff->s > 0) return $diff->s . 's ago';
 
-            return 'just now';
-        }
-    }
-@endphp
+                    return 'just now';
+                    }
+                    }
+                    @endphp
 
-<div class="conversation-time">
-    @if(!empty($conversation['last_message_at']))
-        {{ shortTimeAgo($conversation['last_message_at']) }}
-    @endif
-</div>
+                    <div class="conversation-time">
+                        @if(!empty($conversation['last_message_at']))
+                        {{ shortTimeAgo($conversation['last_message_at']) }}
+                        @endif
+                    </div>
                 </div>
 
                 <div class="d-flex align-items-center justify-content-between">

@@ -323,14 +323,21 @@
 
     @livewireScripts
 
+    <!-- jQuery CDN (required for Sortable and other scripts) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    
+    <!-- SortableJS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    
+    <!-- Select2 JS (complement to existing CSS) -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <!-- Bootstrap JS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
     <!-- SweetAlert2 CDN -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-    
-    
     <!-- Application JavaScript -->
     <script src="{{ asset('js/app.js') }}"></script>
     <script src="{{ asset('js/chat.js') }}"></script>

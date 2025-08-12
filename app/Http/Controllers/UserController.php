@@ -94,24 +94,42 @@ class UserController extends Controller
 
     public function search(Request $request)
     {
-        $query = $request->get('q');
+        $searchQuery = $request->get('q');
+        $userId = $request->get('id'); // New: Handle ID for pre-selection
 
-        if (strlen($query) < 2) {
-            return response()->json([]);
+        $users = \App\Models\User::query();
+
+        if ($userId) {
+            // If an ID is provided, find that specific user
+            $users->where('id', $userId);
+        } elseif ($searchQuery) {
+            // If a search query is provided, filter by it
+            $users->where('id', '!=', Auth::id())
+                ->where(function ($q) use ($searchQuery) {
+                    $q->where('first_name', 'LIKE', "%{$searchQuery}%")
+                      ->orWhere('last_name', 'LIKE', "%{$searchQuery}%")
+                      ->orWhere('username', 'LIKE', "%{$searchQuery}%")
+                      ->orWhere('email', 'LIKE', "%{$searchQuery}%");
+                });
+        } else {
+            // If no search query or ID, return empty or a default set (e.g., all users)
+            // For Select2, it's often better to return empty if no search term
+            return response()->json(['items' => [], 'total_count' => 0]);
         }
 
-        $users = \App\Models\User::where('id', '!=', Auth::id())
-            ->where(function ($q) use ($query) {
-                $q->where('first_name', 'LIKE', "%{$query}%")
-                  ->orWhere('last_name', 'LIKE', "%{$query}%")
-                  ->orWhere('username', 'LIKE', "%{$query}%")
-                  ->orWhere('email', 'LIKE', "%{$query}%");
-            })
-            ->select('id', 'first_name', 'last_name', 'username', 'avatar')
-            ->limit(10)
-            ->get();
+        $users = $users->limit(10)->get(); // Limit to 10 results
 
-        return response()->json($users);
+        $formattedUsers = $users->map(function ($user) {
+            return [
+                'id' => $user->id,
+                'text' => $user->first_name . ' ' . $user->last_name . ' (' . $user->email . ')',
+            ];
+        });
+
+        return response()->json([
+            'items' => $formattedUsers,
+            'total_count' => $users->count() // Or total count if pagination is needed
+        ]);
     }
 
     public function updatePresence(Request $request)

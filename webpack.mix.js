@@ -2,6 +2,10 @@ const mix = require('laravel-mix');
 const fs = require('fs');
 const path = require('path');
 
+mix.autoload({
+    jquery: ['$', 'window.jQuery']
+});
+
 /*
  |--------------------------------------------------------------------------
  | Mix Asset Management
@@ -21,6 +25,9 @@ mix.js('resources/js/app.js', 'public/js')
         require('autoprefixer'),
     ])
     .postCss('resources/css/emoji-picker.css', 'public/css');
+
+mix.styles('node_modules/select2/dist/css/select2.min.css', 'public/css/select2.min.css');
+mix.js('node_modules/select2/dist/js/select2.min.js', 'public/js/select2.min.js');
 
 // Only copy directories if they exist
 if (fs.existsSync('resources/images')) {
