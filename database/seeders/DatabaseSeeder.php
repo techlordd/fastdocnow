@@ -6,10 +6,29 @@ use App\Models\User;
 use App\Models\Conversation;
 use App\Models\Message;
 use Illuminate\Database\Seeder;
+use Faker\Factory;
+use Faker\Generator;
 use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
+    /**
+     * The current Faker instance.
+     *
+     * @var \Faker\Generator
+     */
+    protected $faker;
+
+    /**
+     * Create a new seeder instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+        $this->faker = Factory::create();
+    }
+
     public function run(): void
     {
         // First create super admin and sample contacts
@@ -59,7 +78,7 @@ class DatabaseSeeder extends Seeder
                     ...$userData,
                     'password' => Hash::make('password'),
                     'email_verified_at' => now(),
-                    'last_seen_at' => fake()->dateTimeBetween('-2 hours', 'now'),
+                    'last_seen_at' => $this->faker->dateTimeBetween('-2 hours', 'now'),
                 ]
             );
         }
@@ -104,7 +123,7 @@ class DatabaseSeeder extends Seeder
                 ['user_id' => $demoUser->id, 'content' => 'Absolutely! Let me know when you\'re free.', 'type' => 'text'],
             ];
 
-            $createdAt = fake()->dateTimeBetween('-1 week', 'now');
+            $createdAt = $this->faker->dateTimeBetween('-1 week', 'now');
             foreach ($messages as $index => $messageData) {
                 Message::create([
                     'conversation_id' => $conversation->id,
@@ -144,7 +163,7 @@ class DatabaseSeeder extends Seeder
             ['user_id' => $adminUser->id, 'content' => 'Let\'s make this project a success!', 'type' => 'text'],
         ];
 
-        $groupCreatedAt = fake()->dateTimeBetween('-3 days', 'now');
+        $groupCreatedAt = $this->faker->dateTimeBetween('-3 days', 'now');
         foreach ($groupMessages as $index => $messageData) {
             Message::create([
                 'conversation_id' => $groupConversation->id,
