@@ -97,7 +97,7 @@
 
     <!-- Available Contacts Section -->
     @if(!empty($contacts))
-    <div class="px-3 py-3 border-bottom available-contacts-section">
+    <div class="px-3 py-3 border-bottom available-contacts-section" wire:ignore>
         <div class="accordion" id="contactsAccordion">
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingOne">
@@ -126,10 +126,7 @@
                                         <div class="contact-description text-muted small">{{ $contact['description'] }}</div>
                                         @endif
                                         @if($contact['assigned_user'])
-                                        @php
-                                            $isOnline = $contact['assigned_user'] && isset($contact['assigned_user']['last_seen_at']) && \Carbon\Carbon::parse($contact['assigned_user']['last_seen_at'])->gt(now()->subMinutes(2));
-                                        @endphp
-                                        <div class="assigned-user small user-status-indicator {{ $isOnline ? 'online' : 'offline' }}" data-user-id="{{ $contact['assigned_user']['id'] }}">
+                                        <div class="assigned-user small">
                                             <span class="text-muted">Handled by:</span> {{ $contact['assigned_user']['name'] }}
                                             @if($contact['assigned_user']['is_online'])
                                             <span class="badge bg-success ms-1">Online</span>

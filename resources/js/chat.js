@@ -74,8 +74,9 @@ function initializeLivewireEvents() {
     });
     
     // Listen for conversation loaded
-    Livewire.on('conversationLoaded', () => {
+    Livewire.on('conversationLoaded', (conversationId) => {
         setTimeout(() => scrollToBottom(true), 100);
+        setupChatPresence(conversationId); // Call new function
     });
 }
 
@@ -331,7 +332,7 @@ document.addEventListener('click', function(e) {
 
 
 
-// Export functions for global use
+// Export for global use
 window.ChatApp = {
     scrollToBottom,
     showSuccessToast,
@@ -340,3 +341,57 @@ window.ChatApp = {
     confirmDelete: window.confirmDelete,
     confirmAction: window.confirmAction
 };
+
+// Add this function to chat.js
+function setupChatPresence(conversationId) {
+    if (window.Echo && conversationId) {
+        window.Echo.join(`chat.${conversationId}`)
+            .here((users) => {
+                // This is the initial list of users in the channel
+                console.log('Users in channel:', users);
+                users.forEach(user => {
+                    updateUserStatus(user.id, true); // Mark all initial users as online
+                });
+            })
+            .joining((user) => {
+                // A new user joined
+                console.log('User joining:', user);
+                updateUserStatus(user.id, true);
+                showInfoToast(`${user.first_name} ${user.last_name} is now online.`);
+            })
+            .leaving((user) => {
+                // A user left
+                console.log('User leaving:', user);
+                updateUserStatus(user.id, false);
+                showInfoToast(`${user.first_name} ${user.last_name} went offline.`);
+            })
+            .error((error) => {
+                console.error('Echo presence error:', error);
+            });
+    }
+}
+
+// Add this helper function to chat.js
+function updateUserStatus(userId, isOnline) {
+    const statusElement = document.getElementById(`user-status-${userId}`);
+    if (statusElement) {
+        const circleIcon = statusElement.querySelector('i.fas.fa-circle');
+        const statusText = statusElement.querySelector('span'); // Assuming the text is in a span
+
+        if (isOnline) {
+            statusElement.classList.add('online');
+            statusElement.classList.remove('offline');
+            if (circleIcon) circleIcon.style.color = '#22c55e'; // Green
+            if (statusText) statusText.textContent = 'Online';
+        } else {
+            statusElement.classList.add('offline');
+            statusElement.classList.remove('online');
+            if (circleIcon) circleIcon.style.color = '#6b7280'; // Gray
+            // For offline, we might want to display "Last seen X minutes ago".
+            // This would require fetching the last_seen_at from the server or having it available.
+            // For now, just show "Offline" or "Last seen..." if the data is available in the DOM.
+            // The Livewire poll will eventually update the "Last seen" text.
+            if (statusText) statusText.textContent = 'Offline'; // Placeholder, Livewire will update
+        }
+    }
+}

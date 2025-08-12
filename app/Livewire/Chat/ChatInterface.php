@@ -50,8 +50,10 @@ class ChatInterface extends Component
         if ($this->conversation) {
             $this->loadMessages();
             $this->markMessagesAsRead();
-            $this->dispatch('conversationLoaded');
+            $this->dispatch('conversationLoaded', $this->conversation->id);
             $this->dispatch('scroll-to-bottom');
+            // Add this line to update last_seen_at
+            Auth::user()->updateLastSeen();
         }
     }
 
@@ -205,6 +207,9 @@ class ChatInterface extends Component
 
             // Update conversation timestamp
             $this->conversation->touch();
+
+            // Add this line to update last_seen_at
+            Auth::user()->updateLastSeen();
 
             // Clear form first
             $this->reset(['messageText', 'selectedFiles', 'attachmentCaption', 'showAttachmentPreview']);

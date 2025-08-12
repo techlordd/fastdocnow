@@ -3,58 +3,6 @@ window.axios = axios;
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
-/**
- * Echo exposes an expressive API for subscribing to channels and listening
- * for events that are broadcast by Laravel. Echo and event broadcasting
- * allows your team to easily build robust real-time web applications.
- */
-
-// Initialize Echo for real-time features
-import Echo from 'laravel-echo';
-import Pusher from 'pusher-js';
-
-// Set up Echo for real-time features
-try {
-
-    // Set up Pusher
-    window.Pusher = Pusher;
-
-    if (import.meta.env.VITE_PUSHER_APP_KEY) {
-        window.Echo = new Echo({
-            broadcaster: 'pusher',
-            key: import.meta.env.VITE_PUSHER_APP_KEY,
-            cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER ?? 'mt1',
-            wsHost: import.meta.env.VITE_PUSHER_HOST || `ws-${import.meta.env.VITE_PUSHER_APP_CLUSTER}.pusher-channels.com`,
-            wsPort: import.meta.env.VITE_PUSHER_PORT ?? 80,
-            wssPort: import.meta.env.VITE_PUSHER_PORT ?? 443,
-            forceTLS: (import.meta.env.VITE_PUSHER_SCHEME ?? 'https') === 'https',
-            enabledTransports: ['ws', 'wss'],
-            auth: {
-                headers: {
-                    Authorization: `Bearer ${document.querySelector('meta[name="api-token"]')?.getAttribute('content') || ''}`,
-                },
-            },
-        });
-
-        // Listen for online status updates
-        window.Echo.join('user.online')
-            .here((users) => {
-                updateOnlineStatus(users.map(u => u.id));
-            })
-            .joining((user) => {
-                updateOnlineStatus([user.id], true);
-            })
-            .leaving((user) => {
-                updateOnlineStatus([user.id], false);
-            });
-
-    } else {
-        console.warn('No real-time broadcasting configuration found. Echo will not be initialized.');
-    }
-} catch (error) {
-    console.error('Failed to initialize Echo:', error);
-}
-
 // Global error handling
 window.addEventListener('unhandledrejection', function(event) {
     console.error('Unhandled promise rejection:', event.reason);
@@ -151,43 +99,8 @@ function updateOnlinePresence() {
     }
 }
 
-// Function to update user status indicators on the page
-function updateOnlineStatus(userIds, isOnline = true) {
-    userIds.forEach(userId => {
-        const indicators = document.querySelectorAll(`.user-status-indicator[data-user-id="${userId}"]`);
-        indicators.forEach(indicator => {
-            if (isOnline) {
-                indicator.classList.add('online');
-                indicator.classList.remove('offline');
-            } else {
-                indicator.classList.remove('online');
-                indicator.classList.add('offline');
-            }
-        });
-    });
-}
-
-// Throttle function to limit how often a function is called
-function throttle(func, limit) {
-    let inThrottle;
-    return function() {
-        const args = arguments;
-        const context = this;
-        if (!inThrottle) {
-            func.apply(context, args);
-            inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
-        }
-    };
-}
-
-// Update presence on user activity
-const throttledUpdate = throttle(updateOnlinePresence, 20000);
-window.addEventListener('mousemove', throttledUpdate);
-window.addEventListener('keydown', throttledUpdate);
-window.addEventListener('scroll', throttledUpdate);
-window.addEventListener('click', throttledUpdate);
-
+// Update presence every 30 seconds
+setInterval(updateOnlinePresence, 30000);
 
 // Update presence when page becomes visible
 document.addEventListener('visibilitychange', () => {
@@ -215,3 +128,18 @@ window.api = {
     put: (url, data = {}, config = {}) => window.axios.put(url, data, config),
     delete: (url, config = {}) => window.axios.delete(url, config),
 };
+
+import Echo from 'laravel-echo';
+
+import Pusher from 'pusher-js';
+window.Pusher = Pusher;
+
+window.Echo = new Echo({
+    broadcaster: 'reverb',
+    key: import.meta.env.VITE_REVERB_APP_KEY,
+    wsHost: import.meta.env.VITE_REVERB_HOST,
+    wsPort: import.meta.env.VITE_REVERB_PORT ?? 80,
+    wssPort: import.meta.env.VITE_REVERB_PORT ?? 443,
+    forceTLS: (import.meta.env.VITE_REVERB_SCHEME ?? 'https') === 'https',
+    enabledTransports: ['ws', 'wss'],
+});

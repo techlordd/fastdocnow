@@ -51,18 +51,18 @@
                 {{ $otherUser['first_name'] ?? 'Unknown' }} {{ $otherUser['last_name'] ?? 'User' }}
                 @endif
             </h4>
-            @php
-                $lastSeen = $otherUser['last_seen_at'] ?? now();
-                $isOnline = $otherUser && isset($otherUser['last_seen_at']) &&
-                \Carbon\Carbon::parse($otherUser['last_seen_at'])->gt(now()->subMinutes(2));
-            @endphp
-            <p class="status user-status-indicator {{ $isOnline ? 'online' : 'offline' }}" data-user-id="{{ $otherUser['id'] }}">
-                <span class="online-status {{ $isOnline ? 'online' : 'offline' }}"
-                    title="{{ $isOnline ? 'Online' : 'Last seen ' . \Carbon\Carbon::parse($lastSeen)->diffForHumans() }}">
+            <p class="status">
+                <span class="online-status" id="user-status-{{ $otherUser['id'] }}">
                     <i class="fas fa-circle"></i>
-                    {{ $isOnline ? 'Online' : 'Last seen ' . \Carbon\Carbon::parse($lastSeen)->diffForHumans() }}
+                    @if($otherUser['is_online'])
+                        Online
+                    @else
+                        Last seen {{ \Carbon\Carbon::parse($otherUser['last_seen_at'])->diffForHumans() }}
+                    @endif
                 </span>
             </p>
+            
+            
         </div>
         <div class="ms-auto d-flex align-items-center gap-2">
 
@@ -231,7 +231,7 @@
 
     <!-- Attachment Preview Area -->
     @if($showAttachmentPreview)
-    <div class="attachment-preview-area">
+    <div class="attachment-preview-area" wire:ignore>
         <div class="attachment-preview-header">
             <h6>Send Files</h6>
             <button class="btn btn-sm btn-link" wire:click="$set('showAttachmentPreview', false)">
@@ -285,7 +285,7 @@
     @endif
 
     <!-- Chat Input -->
-    <div class="chat-input-container">
+    <div class="chat-input-container" wire:ignore>
         <form wire:submit="sendMessage" class="chat-input-form">
             <!-- Hidden file inputs -->
             <input type="file" id="fileInput" style="display: none;" multiple
