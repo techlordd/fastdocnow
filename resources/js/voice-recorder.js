@@ -60,11 +60,12 @@ class VoiceRecorder {
 
     getSupportedMimeType() {
         const types = [
-            'audio/webm;codecs=opus',
-            'audio/webm',
-            'audio/mp4',
-            'audio/mpeg',
-            'audio/wav'
+            'audio/mp4',        // M4A - widely supported, pure audio
+            'audio/mpeg',       // MP3 - universal support
+            'audio/ogg',        // OGG - good browser support, pure audio
+            'audio/wav',        // WAV - uncompressed, pure audio
+            'audio/webm;codecs=opus',  // Fallback
+            'audio/webm'        // Last resort fallback
         ];
 
         for (const type of types) {
@@ -162,8 +163,18 @@ class VoiceRecorder {
             return;
         }
 
-        // Create audio file
-        const audioFile = new File([audioBlob], `voice_message_${Date.now()}.webm`, {
+        // Determine file extension based on MIME type
+        const mimeType = this.getSupportedMimeType();
+        let extension = 'audio';
+
+        if (mimeType.includes('mp4')) extension = 'm4a';
+        else if (mimeType.includes('mpeg')) extension = 'mp3';
+        else if (mimeType.includes('ogg')) extension = 'ogg';
+        else if (mimeType.includes('wav')) extension = 'wav';
+        else if (mimeType.includes('webm')) extension = 'webm';
+
+        // Create audio file with proper extension
+        const audioFile = new File([audioBlob], `voice_message_${Date.now()}.${extension}`, {
             type: audioBlob.type
         });
 
@@ -230,11 +241,12 @@ class VoiceRecorder {
 
         // Check if at least one audio mime type is supported
         const supportedTypes = [
-            'audio/webm;codecs=opus',
-            'audio/webm',
-            'audio/mp4',
-            'audio/mpeg',
-            'audio/wav'
+            'audio/mp4',        // M4A - widely supported, pure audio
+            'audio/mpeg',       // MP3 - universal support
+            'audio/ogg',        // OGG - good browser support, pure audio
+            'audio/wav',        // WAV - uncompressed, pure audio
+            'audio/webm;codecs=opus',  // Fallback
+            'audio/webm'        // Last resort fallback
         ];
 
         return supportedTypes.some(type => MediaRecorder.isTypeSupported(type));
@@ -254,11 +266,12 @@ class VoiceRecorder {
         }
 
         const supportedTypes = [
-            'audio/webm;codecs=opus',
-            'audio/webm',
-            'audio/mp4',
-            'audio/mpeg',
-            'audio/wav'
+            'audio/mp4',        // M4A - widely supported, pure audio
+            'audio/mpeg',       // MP3 - universal support
+            'audio/ogg',        // OGG - good browser support, pure audio
+            'audio/wav',        // WAV - uncompressed, pure audio
+            'audio/webm;codecs=opus',  // Fallback
+            'audio/webm'        // Last resort fallback
         ];
 
         if (!supportedTypes.some(type => MediaRecorder.isTypeSupported(type))) {

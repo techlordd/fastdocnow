@@ -25,6 +25,7 @@ class ChatInterface extends Component
     public $showAttachmentPreview = false;
     public $isTyping = false;
     public $typingUsers = [];
+    public $isSendingVoiceMessage = false;
 
     protected $listeners = [
         'conversationSelected' => 'loadConversation',
@@ -157,6 +158,7 @@ class ChatInterface extends Component
 
         $this->messages = $this->conversation->messages()
             ->with(['user'])
+            ->select(['id', 'conversation_id', 'user_id', 'content', 'type', 'attachments', 'created_at', 'updated_at'])
             ->orderBy('created_at', 'asc')
             ->get()
             ->toArray();
@@ -267,7 +269,7 @@ class ChatInterface extends Component
 
     public function updatedSelectedFiles()
     {
-        if (!empty($this->selectedFiles)) {
+        if (!empty($this->selectedFiles) && !$this->isSendingVoiceMessage) {
             $this->showAttachmentPreview = true;
         }
     }
@@ -352,27 +354,60 @@ class ChatInterface extends Component
         $this->sendMessage();
     }
 
-    public function sendVoiceMessage($metadata = [])
-    {
-        if (empty($this->selectedFiles)) {
-            $this->dispatch('error', 'No voice message to send.');
-            return;
-        }
 
+    public function sendVoiceMessageDirect($audioData, $metadata = [])
+    {
         if (!$this->conversation) {
             $this->dispatch('error', 'Please select a conversation first.');
             return;
         }
 
         try {
-            // Process voice message with metadata
-            $attachments = $this->processVoiceMessage($metadata);
+            // Decode base64 audio data
+            $audioBlob = base64_decode($audioData);
+
+            // Determine file extension based on MIME type
+            $mimeType = $metadata['mimeType'] ?? 'audio/mp4';
+            $extension = 'audio';
+
+            if (str_contains($mimeType, 'mp4')) $extension = 'm4a';
+            elseif (str_contains($mimeType, 'mpeg')) $extension = 'mp3';
+            elseif (str_contains($mimeType, 'ogg')) $extension = 'ogg';
+            elseif (str_contains($mimeType, 'wav')) $extension = 'wav';
+            elseif (str_contains($mimeType, 'webm')) $extension = 'webm';
+
+            // Generate filename with proper extension
+            $filename = time() . '_' . uniqid() . '_voice_message.' . $extension;
+
+            // Store file directly in audio messages directory (same as regular audio files)
+            $path = "messages/audios/{$filename}";
+            Storage::disk('public')->put($path, $audioBlob);
+
+            // Create attachment data with voice message metadata
+            $voiceMetadata = [
+                'mime_type' => $mimeType,
+                'original_name' => 'voice_message.' . $extension,
+                'is_voice_message' => true,
+                'duration' => $metadata['duration'] ?? null,
+                'recorded_at' => $metadata['recordedAt'] ?? now()->toISOString(),
+            ];
+
+            $attachments = [[
+                'path' => $path,
+                'name' => 'Voice Message',
+                'size' => strlen($audioBlob),
+                'type' => $mimeType,
+                'metadata' => $voiceMetadata
+            ]];
 
             // Create message
+            $duration = $metadata['duration'] ?? 0;
+            $durationText = $this->formatDuration($duration);
+
             $message = Message::create([
                 'conversation_id' => $this->conversation->id,
                 'user_id' => Auth::id(),
-                'content' => '', // Voice messages don't have text content
+                'content' => "Voice message ({$durationText})",
                 'type' => Message::TYPE_AUDIO,
                 'attachments' => $attachments,
             ]);
@@ -382,12 +417,7 @@ class ChatInterface extends Component
 
             // Update conversation timestamp
             $this->conversation->touch();
-
-            // Add this line to update last_seen_at
             Auth::user()->updateLastSeen();
-
-            // Clear form first
-            $this->reset(['selectedFiles', 'showAttachmentPreview']);
 
             // Refresh messages immediately
             $this->loadMessages();
@@ -435,7 +465,7 @@ class ChatInterface extends Component
             // Determine file type based on extension
             $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
             $videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
-            $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'];
+            $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma', 'webm'];
 
             $fileType = 'file';
             if (in_array($extension, $imageExtensions)) {
@@ -477,42 +507,6 @@ class ChatInterface extends Component
         return $attachments;
     }
 
-    private function processVoiceMessage($metadata = [])
-    {
-        if (empty($this->selectedFiles)) {
-            return null;
-        }
-
-        $attachments = [];
-
-        foreach ($this->selectedFiles as $file) {
-            if (!$file) continue;
-
-            $filename = time() . '_' . uniqid() . '_voice_message.webm';
-            $mimeType = $file->getClientMimeType();
-
-            // Store file in voice messages directory
-            $path = $file->storeAs("messages/audios", $filename, 'public');
-
-            $voiceMetadata = [
-                'mime_type' => $mimeType,
-                'original_name' => $file->getClientOriginalName(),
-                'is_voice_message' => true,
-                'duration' => $metadata['duration'] ?? null,
-                'recorded_at' => now()->toISOString(),
-            ];
-
-            $attachments[] = [
-                'path' => $path,
-                'name' => 'Voice Message',
-                'size' => $file->getSize(),
-                'type' => $mimeType,
-                'metadata' => $voiceMetadata
-            ];
-        }
-
-        return $attachments;
-    }
 
     private function determineMessageType($attachments)
     {
@@ -569,6 +563,13 @@ class ChatInterface extends Component
         } else {
             return 'Several people are typing...';
         }
+    }
+
+    private function formatDuration($seconds)
+    {
+        $minutes = floor($seconds / 60);
+        $seconds = $seconds % 60;
+        return sprintf('%d:%02d', $minutes, $seconds);
     }
 
     public function render()

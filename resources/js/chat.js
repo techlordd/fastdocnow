@@ -738,42 +738,39 @@ async function sendVoiceMessage(audioFile, duration) {
         // Show loading state
         showInfoToast('Sending voice message...');
 
-        // Send to Livewire component - specifically target the ChatInterface component
-        if (window.Livewire) {
-            // Find the ChatInterface component by looking for the element that contains the message input
-            const messageInputElement = document.getElementById('chat-message-input');
-            const chatInterfaceElement = messageInputElement ?
-                messageInputElement.closest('[wire\\:id]') :
-                document.querySelector('.main-chat-area [wire\\:id]') ||
-                document.querySelector('.chat-main [wire\\:id]');
+        // Convert audio file to base64
+        const arrayBuffer = await audioFile.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const base64String = btoa(String.fromCharCode.apply(null, uint8Array));
 
-            const chatComponent = chatInterfaceElement ?
-                window.Livewire.find(chatInterfaceElement.getAttribute('wire:id')) :
-                null;
+        // Find the ChatInterface component
+        const messageInputElement = document.getElementById('chat-message-input');
+        const chatInterfaceElement = messageInputElement ?
+            messageInputElement.closest('[wire\\:id]') :
+            document.querySelector('.main-chat-area [wire\\:id]') ||
+            document.querySelector('.chat-main [wire\\:id]');
 
-            if (chatComponent) {
-                // Set the file in selectedFiles
-                chatComponent.set('selectedFiles', [audioFile]);
+        const chatComponent = chatInterfaceElement ?
+            window.Livewire.find(chatInterfaceElement.getAttribute('wire:id')) :
+            null;
 
-                // Wait a moment for the file to be processed
-                setTimeout(() => {
-                    // Call the sendVoiceMessage method with metadata
-                    chatComponent.call('sendVoiceMessage', {
-                        duration: duration,
-                        isVoiceMessage: true
-                    }).then(() => {
-                        showSuccessToast('Voice message sent!');
-                    }).catch((error) => {
-                        console.error('Livewire call failed:', error);
-                        showErrorToast('Failed to send voice message');
-                    });
-                }, 100);
-            } else {
-                throw new Error('Chat component not found');
-            }
-        } else {
-            throw new Error('Livewire not available');
+        if (!chatComponent) {
+            throw new Error('Chat component not found');
         }
+
+        // Call direct voice message upload method
+        chatComponent.call('sendVoiceMessageDirect', base64String, {
+            duration: duration,
+            isVoiceMessage: true,
+            recordedAt: new Date().toISOString(),
+            mimeType: audioFile.type || 'audio/mp4'
+        }).then(() => {
+            showSuccessToast('Voice message sent!');
+        }).catch((error) => {
+            console.error('Failed to send voice message:', error);
+            showErrorToast('Failed to send voice message');
+        });
+
     } catch (error) {
         console.error('Failed to send voice message:', error);
         showErrorToast('Failed to send voice message: ' + error.message);

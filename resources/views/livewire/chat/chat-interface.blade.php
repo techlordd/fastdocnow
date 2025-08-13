@@ -35,11 +35,11 @@
             $contactAvatar = $conversation['contact']['avatar'] ?? null;
 
             if (!$contactName) {
-                $otherUser = collect($conversation['participants'])
-                ->first(fn($user) => $user['id'] !== auth()->id());
-                $contactName = $otherUser['first_name'] ?? 'U';
-                $contactLastName = $otherUser['last_name'] ?? 'U';
-                $contactAvatar = $otherUser['avatar'] ?? null;
+            $otherUser = collect($conversation['participants'])
+            ->first(fn($user) => $user['id'] !== auth()->id());
+            $contactName = $otherUser['first_name'] ?? 'U';
+            $contactLastName = $otherUser['last_name'] ?? 'U';
+            $contactAvatar = $otherUser['avatar'] ?? null;
             }
             @endphp
             @if($contactAvatar)
@@ -53,17 +53,17 @@
                 {{ $contactName }} {{ $contactLastName }}
             </h4>
             <p class="status">
-            <span class="online-status" id="user-status-{{ $otherUser['id'] }}">
+                <span class="online-status" id="user-status-{{ $otherUser['id'] }}">
                     <i class="fas fa-circle"></i>
                     @if($otherUser['is_online'])
-                        Online
+                    Online
                     @else
-                        Last seen {{ \Carbon\Carbon::parse($otherUser['last_seen_at'])->diffForHumans() }}
+                    Last seen {{ \Carbon\Carbon::parse($otherUser['last_seen_at'])->diffForHumans() }}
                     @endif
                 </span>
             </p>
-            
-            
+
+
         </div>
         <div class="ms-auto d-flex align-items-center gap-2">
 
@@ -106,15 +106,14 @@
                 @endif
 
                 <div class="message-content">
-                    @dump($message)
                     @if($message['attachments'])
                     @foreach($message['attachments'] as $attachment)
                     @php
-                    $fileName = $attachment['name'] ?? 'unknown';
+                    $fileName = $attachment['path'] ?? 'unknown';
                     $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
                     $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
                     $videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
-                    $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'];
+                    $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma', 'webm'];
                     $isImage = in_array($extension, $imageExtensions);
                     $isVideo = in_array($extension, $videoExtensions);
                     $isAudio = in_array($extension, $audioExtensions);
@@ -199,9 +198,9 @@
                                 <div class="voice-info">
                                     <div class="voice-duration">
                                         @if($duration)
-                                            {{ gmdate('i:s', $duration) }}
+                                        {{ gmdate('i:s', $duration) }}
                                         @else
-                                            --:--
+                                        --:--
                                         @endif
                                     </div>
                                     <div class="voice-label">
@@ -235,7 +234,19 @@
                     @endforeach
                     @endif
 
-                    @if($message['content'] || empty($message['attachments']))
+                    @php
+                    $hasVoiceMessage = false;
+                    if ($message['attachments']) {
+                    foreach ($message['attachments'] as $attachment) {
+                    if (isset($attachment['metadata']['is_voice_message']) && $attachment['metadata']['is_voice_message']) {
+                    $hasVoiceMessage = true;
+                    break;
+                    }
+                    }
+                    }
+                    @endphp
+
+                    @if(!$hasVoiceMessage && $message['content'] && !empty(trim($message['content'])))
                     {!! nl2br(e($message['content'])) !!}
                     @endif
                 </div>
@@ -440,47 +451,47 @@
     </div>
     @endif
     <style>
-    
         .online-status {
             display: flex;
             align-items: center;
             font-size: 12px;
         }
-    
+
         .online-status.online i {
             color: #22c55e;
             animation: pulse 2s infinite;
         }
-    
+
         .online-status.offline i {
             color: #6b7280;
         }
-    
+
         @keyframes pulse {
-    
+
             0%,
             100% {
                 opacity: 1;
             }
-    
+
             50% {
                 opacity: 0.5;
             }
         }
-    
+
         .dropdown-menu {
             min-width: 220px;
         }
-    
+
         .dropdown-item i {
             width: 16px;
             text-align: center;
         }
-    
+
         /* WhatsApp-style Voice Recording */
         .voice-recording-container {
             position: absolute;
-            bottom: 0;
+            top: -100%;
+            transform: translateY(-50%);
             left: 0;
             right: 0;
             background: #f0f2f5;
@@ -490,23 +501,24 @@
             display: none;
             box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
         }
-    
+
         .voice-recording-container.show {
             display: block;
             animation: slideUpFade 0.2s ease-out;
         }
-    
+
         @keyframes slideUpFade {
             from {
                 opacity: 0;
                 transform: translateY(10px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
-    
+
         .voice-recording-content {
             display: flex;
             align-items: center;
@@ -517,7 +529,7 @@
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             border: 1px solid #e4e6ea;
         }
-    
+
         .recording-visualizer {
             display: flex;
             align-items: center;
@@ -526,7 +538,7 @@
             height: 40px;
             position: relative;
         }
-    
+
         .recording-pulse {
             position: absolute;
             width: 40px;
@@ -535,36 +547,38 @@
             background: rgba(220, 53, 69, 0.15);
             animation: whatsapp-pulse 1.5s ease-in-out infinite;
         }
-    
+
         .recording-icon {
             position: relative;
             z-index: 2;
             font-size: 18px;
             color: #dc3545;
         }
-    
+
         @keyframes whatsapp-pulse {
             0% {
                 transform: scale(1);
                 opacity: 0.7;
             }
+
             50% {
                 transform: scale(1.2);
                 opacity: 0.3;
             }
+
             100% {
                 transform: scale(1);
                 opacity: 0.7;
             }
         }
-    
+
         .recording-info {
             flex: 1;
             display: flex;
             align-items: center;
             gap: 8px;
         }
-    
+
         .recording-time {
             font-size: 15px;
             font-weight: 400;
@@ -572,7 +586,7 @@
             font-family: system-ui, -apple-system, sans-serif;
             min-width: 40px;
         }
-    
+
         .recording-text {
             font-size: 15px;
             color: #54656f;
@@ -580,7 +594,7 @@
             align-items: center;
             gap: 6px;
         }
-    
+
         .recording-text::before {
             content: '';
             width: 6px;
@@ -589,54 +603,92 @@
             border-radius: 50%;
             animation: whatsapp-blink 1s infinite;
         }
-    
+
         @keyframes whatsapp-blink {
-            0%, 50% {
+
+            0%,
+            50% {
                 opacity: 1;
             }
-            51%, 100% {
+
+            51%,
+            100% {
                 opacity: 0.3;
             }
         }
-    
+
         .recording-waveform {
             display: flex;
             align-items: center;
             gap: 2px;
             margin-left: 8px;
         }
-    
+
         .recording-waveform-bar {
             width: 3px;
             background: #25d366;
             border-radius: 2px;
             animation: waveform-dance 1.2s ease-in-out infinite;
         }
-    
-        .recording-waveform-bar:nth-child(1) { height: 8px; animation-delay: 0s; }
-        .recording-waveform-bar:nth-child(2) { height: 16px; animation-delay: 0.1s; }
-        .recording-waveform-bar:nth-child(3) { height: 12px; animation-delay: 0.2s; }
-        .recording-waveform-bar:nth-child(4) { height: 20px; animation-delay: 0.3s; }
-        .recording-waveform-bar:nth-child(5) { height: 14px; animation-delay: 0.4s; }
-        .recording-waveform-bar:nth-child(6) { height: 10px; animation-delay: 0.5s; }
-        .recording-waveform-bar:nth-child(7) { height: 18px; animation-delay: 0.6s; }
-        .recording-waveform-bar:nth-child(8) { height: 8px; animation-delay: 0.7s; }
-    
+
+        .recording-waveform-bar:nth-child(1) {
+            height: 8px;
+            animation-delay: 0s;
+        }
+
+        .recording-waveform-bar:nth-child(2) {
+            height: 16px;
+            animation-delay: 0.1s;
+        }
+
+        .recording-waveform-bar:nth-child(3) {
+            height: 12px;
+            animation-delay: 0.2s;
+        }
+
+        .recording-waveform-bar:nth-child(4) {
+            height: 20px;
+            animation-delay: 0.3s;
+        }
+
+        .recording-waveform-bar:nth-child(5) {
+            height: 14px;
+            animation-delay: 0.4s;
+        }
+
+        .recording-waveform-bar:nth-child(6) {
+            height: 10px;
+            animation-delay: 0.5s;
+        }
+
+        .recording-waveform-bar:nth-child(7) {
+            height: 18px;
+            animation-delay: 0.6s;
+        }
+
+        .recording-waveform-bar:nth-child(8) {
+            height: 8px;
+            animation-delay: 0.7s;
+        }
+
         @keyframes waveform-dance {
-            0%, 100% {
+
+            0%,
+            100% {
                 transform: scaleY(1);
             }
+
             50% {
                 transform: scaleY(0.3);
             }
         }
-    
+
         .recording-actions {
             display: flex;
             gap: 8px;
             align-items: center;
         }
-    
+
         .recording-action-btn {
             display: flex;
             align-items: center;
@@ -650,29 +702,29 @@
             transition: all 0.15s ease;
             position: relative;
         }
-    
+
         .recording-action-btn:active {
             transform: scale(0.95);
         }
-    
+
         .recording-action-btn.cancel-btn {
             background: #f1f3f4;
             color: #54656f;
         }
-    
+
         .recording-action-btn.cancel-btn:hover {
             background: #e4e6ea;
         }
-    
+
         .recording-action-btn.send-btn {
             background: #25d366;
             color: white;
         }
-    
+
         .recording-action-btn.send-btn:hover {
             background: #20c157;
         }
-    
+
         /* Voice Message Player Styles */
         .voice-message-player {
             display: flex;
@@ -685,18 +737,18 @@
             min-width: 240px;
             transition: all 0.2s ease;
         }
-    
+
         .message.sent .voice-message-player {
             background: rgba(255, 255, 255, 0.15);
         }
-    
+
         .voice-content {
             flex: 1;
             display: flex;
             flex-direction: column;
             gap: 4px;
         }
-    
+
         .voice-play-btn {
             width: 36px;
             height: 36px;
@@ -713,26 +765,26 @@
             font-size: 14px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-    
+
         .voice-play-btn:hover {
             background: #008c72;
             transform: scale(1.05);
         }
-    
+
         .voice-play-btn:active {
             transform: scale(0.95);
         }
-    
+
         .message.sent .voice-play-btn {
             background: rgba(255, 255, 255, 0.95);
             color: #00a884;
         }
-    
+
         .message.sent .voice-play-btn:hover {
             background: white;
             color: #008c72;
         }
-    
+
         .voice-waveform-container {
             position: relative;
             height: 24px;
@@ -740,7 +792,7 @@
             align-items: center;
             margin-bottom: 2px;
         }
-    
+
         .voice-waveform {
             display: flex;
             align-items: center;
@@ -749,7 +801,7 @@
             width: 100%;
             cursor: pointer;
         }
-    
+
         .voice-waveform-bar {
             flex: 1;
             background: #9ca3af;
@@ -758,23 +810,23 @@
             max-width: 3px;
             transition: all 0.1s ease;
         }
-    
+
         .message.sent .voice-waveform-bar {
             background: rgba(255, 255, 255, 0.7);
         }
-    
+
         .voice-waveform-bar.active {
             background: #00a884;
         }
-    
+
         .message.sent .voice-waveform-bar.active {
             background: rgba(255, 255, 255, 0.95);
         }
-    
+
         .voice-waveform-bar:hover {
             opacity: 0.8;
         }
-    
+
         .voice-progress-bar {
             position: absolute;
             top: 0;
@@ -783,7 +835,7 @@
             bottom: 0;
             pointer-events: none;
         }
-    
+
         .voice-progress {
             height: 100%;
             background: linear-gradient(90deg, rgba(0, 168, 132, 0.2) 0%, transparent 100%);
@@ -791,13 +843,13 @@
             transition: width 0.1s ease;
             border-radius: 1px;
         }
-    
+
         .voice-info {
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-    
+
         .voice-duration {
             font-size: 11px;
             color: #6b7280;
@@ -805,11 +857,11 @@
             white-space: nowrap;
             font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, sans-serif;
         }
-    
+
         .message.sent .voice-duration {
             color: rgba(255, 255, 255, 0.85);
         }
-    
+
         .voice-label {
             font-size: 10px;
             color: #9ca3af;
@@ -817,15 +869,15 @@
             align-items: center;
             gap: 3px;
         }
-    
+
         .message.sent .voice-label {
             color: rgba(255, 255, 255, 0.7);
         }
-    
+
         .voice-icon {
             font-size: 8px;
         }
-    
+
         .voice-input-btn {
             background: none;
             border: none;
@@ -836,19 +888,19 @@
             transition: all 0.2s ease;
             position: relative;
         }
-    
+
         .voice-input-btn:hover {
             background-color: #f3f4f6;
             color: #374151;
             transform: scale(1.05);
         }
-    
+
         .voice-input-btn.recording {
             color: #ef4444;
             background-color: rgba(239, 68, 68, 0.1);
             animation: recording-btn-pulse 2s infinite;
         }
-    
+
         .voice-input-btn.recording::after {
             content: '';
             position: absolute;
@@ -862,23 +914,31 @@
             opacity: 0.5;
             animation: recording-btn-ring 2s infinite;
         }
-    
+
         @keyframes recording-btn-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+
+            0%,
+            100% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.05);
+            }
         }
-    
+
         @keyframes recording-btn-ring {
             0% {
                 transform: translate(-50%, -50%) scale(1);
                 opacity: 0.5;
             }
+
             100% {
                 transform: translate(-50%, -50%) scale(1.4);
                 opacity: 0;
             }
         }
-    
+
         /* Notification styles */
         .notification-toast {
             position: fixed;
@@ -893,25 +953,25 @@
             border-left: 4px solid #3b82f6;
             animation: slideInRight 0.3s ease-out;
         }
-    
+
         @keyframes slideInRight {
             from {
                 transform: translateX(100%);
                 opacity: 0;
             }
-    
+
             to {
                 transform: translateX(0);
                 opacity: 1;
             }
         }
-    
+
         .notification-toast .notification-header {
             display: flex;
             align-items: center;
             margin-bottom: 8px;
         }
-    
+
         .notification-toast .notification-avatar {
             width: 32px;
             height: 32px;
@@ -924,12 +984,12 @@
             font-size: 12px;
             font-weight: 600;
         }
-    
+
         .notification-toast .notification-body {
             color: #6b7280;
             font-size: 14px;
         }
-    
+
         .notification-toast .notification-close {
             position: absolute;
             top: 8px;
@@ -939,9 +999,9 @@
             color: #9ca3af;
             cursor: pointer;
         }
-    
-    
-    
+
+
+
         /* Attachment Menu Styles */
         .attachment-menu {
             position: absolute;
@@ -956,11 +1016,11 @@
             z-index: 1000;
             min-width: 120px;
         }
-    
+
         .attachment-menu.show {
             display: block;
         }
-    
+
         /* Emoji Picker Styles */
         .emoji-picker-container {
             position: absolute;
@@ -975,18 +1035,18 @@
             transition: opacity 0.2s ease, transform 0.2s ease;
             pointer-events: none;
         }
-    
+
         .emoji-picker-container.show {
             opacity: 1;
             transform: translateY(0);
             pointer-events: auto;
         }
-    
+
         .emoji-picker {
             border-radius: 8px;
             box-shadow: none;
         }
-    
+
         .attachment-option {
             display: flex;
             align-items: center;
@@ -999,21 +1059,21 @@
             width: 100%;
             text-align: left;
         }
-    
+
         .attachment-option:hover {
             background-color: #f3f4f6;
         }
-    
+
         .attachment-option i {
             margin-right: 8px;
             width: 16px;
         }
-    
+
         /* Chat Input Styles */
         .chat-input-container {
             position: relative;
         }
-    
+
         .chat-input-btn {
             background: none;
             border: none;
@@ -1023,12 +1083,12 @@
             border-radius: 4px;
             transition: background-color 0.2s;
         }
-    
+
         .chat-input-btn:hover {
             background-color: #f3f4f6;
             color: #374151;
         }
-    
+
         .voice-recorder-btn-disabled {
             background: none;
             border: none;
@@ -1039,12 +1099,12 @@
             transition: background-color 0.2s;
             opacity: 0.5;
         }
-    
+
         .voice-recorder-btn-disabled:hover {
             background-color: #f9fafb;
             color: #6b7280;
         }
-    
+
         /* Attachment Preview Styles */
         .attachment-preview-area {
             border-top: 1px solid #e5e7eb;
@@ -1053,14 +1113,14 @@
             margin: 0 15px 15px 15px;
             border-radius: 8px;
         }
-    
+
         .attachment-preview-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 10px;
         }
-    
+
         .attachment-preview-container {
             display: flex;
             gap: 10px;
@@ -1068,29 +1128,26 @@
             overflow-x: auto;
             padding-bottom: 5px;
         }
-    
+
         .attachment-preview-item {
             position: relative;
             min-width: 100px;
         }
-    
+
         .preview-image {
-            width: 100px;
             height: 100px;
             object-fit: cover;
             border-radius: 8px;
             border: 2px solid #e5e7eb;
         }
-    
+
         .preview-video {
-            width: 100px;
             height: 100px;
             border-radius: 8px;
             border: 2px solid #e5e7eb;
         }
-    
+
         .preview-file {
-            width: 100px;
             height: 100px;
             display: flex;
             flex-direction: column;
@@ -1102,14 +1159,14 @@
             text-align: center;
             padding: 10px;
         }
-    
+
         .preview-file .file-name {
             font-size: 10px;
             margin-top: 5px;
             color: #6b7280;
             word-break: break-all;
         }
-    
+
         .remove-attachment-btn {
             position: absolute;
             top: -5px;
@@ -1126,16 +1183,16 @@
             cursor: pointer;
             font-size: 12px;
         }
-    
+
         .remove-attachment-btn:hover {
             background: #dc2626;
         }
-    
+
         /* Fix for Bootstrap dropdown not working */
         .dropdown-menu {
             z-index: 1050;
         }
-    
+
         /* Toast notification styles */
         .toast-container {
             position: fixed;
@@ -1144,7 +1201,7 @@
             z-index: 9999;
             max-width: 400px;
         }
-    
+
         .message-toast {
             background: white;
             border-radius: 12px;
@@ -1154,18 +1211,19 @@
             border: 1px solid #e5e7eb;
             animation: slideInRight 0.3s ease-out;
         }
-    
+
         @keyframes slideInRight {
             from {
                 transform: translateX(100%);
                 opacity: 0;
             }
+
             to {
                 transform: translateX(0);
                 opacity: 1;
             }
         }
-    
+
         .toast-header {
             display: flex;
             align-items: center;
@@ -1173,7 +1231,7 @@
             border-bottom: 1px solid #f3f4f6;
             position: relative;
         }
-    
+
         .toast-avatar {
             width: 40px;
             height: 40px;
@@ -1188,33 +1246,33 @@
             font-size: 14px;
             flex-shrink: 0;
         }
-    
+
         .toast-avatar img {
             width: 100%;
             height: 100%;
             border-radius: 50%;
             object-fit: cover;
         }
-    
+
         .toast-content {
             flex: 1;
             min-width: 0;
         }
-    
+
         .toast-title {
             font-weight: 600;
             color: #111827;
             font-size: 14px;
             margin-bottom: 4px;
         }
-    
+
         .toast-message {
             color: #6b7280;
             font-size: 13px;
             line-height: 1.4;
             word-break: break-word;
         }
-    
+
         .toast-close {
             position: absolute;
             top: 8px;
@@ -1228,18 +1286,18 @@
             border-radius: 4px;
             transition: background-color 0.2s;
         }
-    
+
         .toast-close:hover {
             background-color: #f3f4f6;
             color: #6b7280;
         }
-    
+
         .toast-actions {
             padding: 12px 16px;
             background: #f9fafb;
             border-top: 1px solid #f3f4f6;
         }
-    
+
         .toast-action-btn {
             background: #6600ff;
             color: white;
@@ -1252,41 +1310,41 @@
             transition: background-color 0.2s;
             width: 100%;
         }
-    
+
         .toast-action-btn:hover {
             background: #5500dd;
         }
-    
+
         /* Sidebar toast specific styles */
         .sidebar-toast {
             border-left: 4px solid #22c55e;
         }
-    
+
         .sidebar-toast .toast-subtitle {
             font-size: 12px;
             color: #6b7280;
             margin-bottom: 2px;
         }
-    
+
         .sidebar-toast .toast-title {
             font-weight: 600;
             color: #059669;
             font-size: 14px;
             margin-bottom: 2px;
         }
-    
+
         @media (max-width: 480px) {
             .toast-container {
                 right: 12px;
                 left: 12px;
                 max-width: none;
             }
-    
+
             .message-toast {
                 margin-bottom: 8px;
             }
         }
-    
+
         /* Message display improvements */
         .chat-messages {
             flex: 1;
@@ -1294,54 +1352,53 @@
             padding: 20px;
             scroll-behavior: smooth;
         }
-    
+
         .message-group {
             margin-bottom: 20px;
         }
-    
+
         .message {
             max-width: 70%;
             margin-bottom: 10px;
         }
-    
+
         .message.sent {
             margin-left: auto;
             text-align: right;
         }
-    
+
         .message-content {
             background: #f1f5f9;
             padding: 10px 15px;
             border-radius: 18px;
             word-wrap: break-word;
         }
-    
+
         .message.sent .message-content {
             background: #3b82f6;
             color: white;
         }
-    
+
         @media (max-width: 768px) {
             .chat-main-header {
                 padding: 10px;
             }
-    
+
             .chat-main-info h4 {
                 font-size: 1.1rem;
             }
-    
+
             .chat-messages {
                 padding: 10px;
             }
-    
+
             .message {
                 max-width: 85%;
             }
-    
+
             .chat-input-container {
                 padding: 10px;
             }
         }
     </style>
 </div>
-
