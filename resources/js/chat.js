@@ -1,8 +1,10 @@
 import Swal from 'sweetalert2';
 import VoiceRecorder from './voice-recorder.js';
+import EmojiPickerMart from './emoji-picker-mart.js';
 
-// Global voice recorder instance
+// Global instances
 let voiceRecorder = null;
+let emojiPicker = null;
 
 // Simple, reliable chat functionality
 document.addEventListener('DOMContentLoaded', function() {
@@ -12,6 +14,17 @@ document.addEventListener('DOMContentLoaded', function() {
 // Livewire event listeners
 document.addEventListener('livewire:init', function() {
     initializeLivewireEvents();
+});
+
+// Listen for Livewire component updates
+document.addEventListener('livewire:update', function(event) {
+    // Re-initialize emoji picker if chat interface was updated
+    if (event.detail.component.name === 'chat.chat-interface') {
+        setTimeout(() => {
+            initializeEmojiPicker();
+            initializeTextareaResize();
+        }, 50);
+    }
 });
 
 function initializeChat() {
@@ -53,9 +66,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 sidebar.classList.remove('open');
                 mainChatWrapper.classList.remove('sidebar-open');
             }
-            initializeEmojiPicker();
+            // Re-initialize emoji picker when conversation is selected
+            setTimeout(() => {
+                initializeEmojiPicker();
+            }, 100);
         });
     }
+});
+
+// Also listen for Livewire navigation events
+document.addEventListener('livewire:navigated', function() {
+    // Re-initialize all chat components when navigating
+    setTimeout(() => {
+        initializeChat();
+    }, 100);
 });
 
 
@@ -64,27 +88,33 @@ function initializeLivewireEvents() {
     Livewire.on('scroll-to-bottom', () => {
         scrollToBottom(true);
     });
-    
+
     // Listen for success messages
     Livewire.on('success', (message) => {
         showSuccessToast(message);
     });
-    
+
     // Listen for error messages
     Livewire.on('error', (message) => {
         showErrorToast(message);
     });
-    
+
     // Listen for new messages
     Livewire.on('messageAdded', () => {
         scrollToBottom();
         updateScrollButton();
     });
-    
+
     // Listen for conversation loaded
     Livewire.on('conversationLoaded', (conversationId) => {
-        setTimeout(() => scrollToBottom(true), 100);
-        setupChatPresence(conversationId); // Call new function
+        setTimeout(() => {
+            scrollToBottom(true);
+            // Re-initialize emoji picker when conversation loads
+            initializeEmojiPicker();
+            // Re-initialize textarea resize
+            initializeTextareaResize();
+        }, 100);
+        setupChatPresence(conversationId);
     });
 }
 
@@ -127,102 +157,36 @@ function initializeScrollButton() {
 
 
 function initializeEmojiPicker() {
-    const container = document.getElementById('emojiPickerContainer');
-    if (!container) {
-        console.warn('Emoji picker container not found');
+    try {
+        // Check if container exists first
+        const container = document.getElementById('emojiPickerContainer');
+        if (!container) {
+            console.warn('Emoji picker container not found - chat interface may not be loaded yet');
+            return null;
+        }
+
+        // If we already have an emoji picker and it's working, don't reinitialize
+        if (emojiPicker && emojiPicker.container && emojiPicker.container.parentNode) {
+            return emojiPicker;
+        }
+
+        // Create new emoji picker instance
+        emojiPicker = new EmojiPickerMart();
+
+        const success = emojiPicker.initialize('emojiPickerContainer');
+        if (!success) {
+            console.warn('Failed to initialize emoji picker');
+            return null;
+        }
+
+        console.log('Emoji picker initialized successfully');
+        return emojiPicker;
+    } catch (error) {
+        console.error('Error initializing emoji picker:', error);
         return null;
     }
-setTimeout(()=>{
-    let emojiPicker = container.querySelector('emoji-picker');
-
-    if (!emojiPicker) {
-        // Check if emoji-picker-element is loaded
-        if (typeof customElements.get('emoji-picker') === 'undefined') {
-            console.warn('emoji-picker-element not loaded yet, trying to wait...');
-
-            // Try to wait for it to load
-            const checkForEmojiPicker = () => {
-                if (typeof customElements.get('emoji-picker') !== 'undefined') {
-                    createEmojiPicker();
-                } else {
-                    setTimeout(checkForEmojiPicker, 100);
-                }
-            };
-
-            const createEmojiPicker = () => {
-                emojiPicker = document.createElement('emoji-picker');
-                emojiPicker.className = 'emoji-picker';
-                container.appendChild(emojiPicker);
-                setupEmojiPickerEvents(emojiPicker);
-            };
-
-            checkForEmojiPicker();
-            return null; // Return null for now, will be created async
-        } else {
-            // Create new emoji picker
-            emojiPicker = document.createElement('emoji-picker');
-            emojiPicker.className = 'emoji-picker';
-            container.appendChild(emojiPicker);
-        }
-    }
-
-    if (emojiPicker) {
-        setupEmojiPickerEvents(emojiPicker);
-    }
-
-    return emojiPicker;
-},2000);
-
 }
 
-function setupEmojiPickerEvents(emojiPicker) {
-    // Remove existing listener to avoid duplicates
-    emojiPicker.removeEventListener('emoji-click', handleEmojiClick);
-
-    // Add event listener
-    emojiPicker.addEventListener('emoji-click', handleEmojiClick);
-
-    // Set picker properties for better UX
-    emojiPicker.setAttribute('autoFocus', 'false');
-    emojiPicker.setAttribute('skinToneEmoji', '👍');
-}
-
-function handleEmojiClick(event) {
-    console.log('Emoji clicked:', event.detail);
-    const textarea = document.getElementById('chat-message-input');
-    if (textarea && event.detail && event.detail.unicode) {
-        const emoji = event.detail.unicode;
-        const start = textarea.selectionStart || 0;
-        const end = textarea.selectionEnd || 0;
-        const value = textarea.value || '';
-
-        // Insert emoji at cursor position
-        const newValue = value.slice(0, start) + emoji + value.slice(end);
-        textarea.value = newValue;
-
-        // Update cursor position
-        const newCursorPos = start + emoji.length;
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-
-        // Focus and trigger Livewire update
-        textarea.focus();
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
-
-        // Trigger Livewire wire:model update
-        if (window.Livewire) {
-            const component = window.Livewire.find(textarea.closest('[wire\\:id]')?.getAttribute('wire:id'));
-            if (component) {
-                component.set('messageText', newValue);
-            }
-        }
-
-        // Auto-resize textarea
-        resizeTextarea(textarea);
-
-        // Hide emoji picker
-        hideEmojiPicker();
-    }
-}
 
 function initializeTextareaResize() {
     const textarea = document.getElementById('chat-message-input');
@@ -339,75 +303,43 @@ function showInfoToast(message) {
 
 // Menu toggle functions
 window.toggleEmojiPicker = function() {
-    const container = document.getElementById('emojiPickerContainer');
-    if (!container) {
-        console.error('Emoji picker container not found');
-        return;
-    }
-
-    const isVisible = container.classList.contains('show');
-
-    if (isVisible) {
-        container.classList.remove('show');
-        setTimeout(() => {
-            container.style.display = 'none';
-        }, 200); // Wait for animation to complete
-    } else {
+    try {
         // Hide other menus first
         hideAttachmentMenu();
         hideVoiceRecording();
 
-        // Initialize emoji picker first
-        const emojiPicker = initializeEmojiPicker();
-
-        if (!emojiPicker) {
-            console.error('Failed to initialize emoji picker');
-            showErrorToast('Emoji picker failed to load. Please refresh the page.');
+        // Check if container exists
+        const container = document.getElementById('emojiPickerContainer');
+        if (!container) {
+            showErrorToast('Chat interface not ready. Please wait a moment and try again.');
             return;
         }
 
-        // Position the picker properly
-        positionEmojiPicker(container);
+        // Initialize emoji picker if not already done
+        if (!emojiPicker || !emojiPicker.container || !emojiPicker.container.parentNode) {
+            const picker = initializeEmojiPicker();
+            if (!picker) {
+                showErrorToast('Emoji picker failed to load. Please refresh the page.');
+                return;
+            }
+        }
 
-        container.style.display = 'block';
-        // Force reflow before adding show class for animation
-        container.offsetHeight;
-        container.classList.add('show');
-    }
+        // Get target input
+        const targetInput = document.getElementById('chat-message-input');
+        if (!targetInput) {
+            showErrorToast('Message input not found. Please refresh the page.');
+            return;
+        }
 
-    // Hide attachment menu
-    const attachmentMenu = document.getElementById('attachmentMenu');
-    if (attachmentMenu) {
-        attachmentMenu.style.display = 'none';
+        // Toggle picker
+        emojiPicker.toggle(targetInput);
+
+    } catch (error) {
+        console.error('Error toggling emoji picker:', error);
+        showErrorToast('Emoji picker error. Please refresh the page.');
     }
 };
 
-function positionEmojiPicker(container) {
-    const chatInput = document.querySelector('.chat-input-container');
-    const emojiBtn = document.querySelector('.emoji_picker_btn');
-
-    if (chatInput && emojiBtn) {
-        const chatInputRect = chatInput.getBoundingClientRect();
-        const emojiBtnRect = emojiBtn.getBoundingClientRect();
-        const viewportWidth = window.innerWidth;
-        const containerWidth = 320; // Default emoji picker width
-
-        // Calculate positioning
-        let left = emojiBtnRect.left;
-
-        // Adjust if picker would go off-screen
-        if (left + containerWidth > viewportWidth - 20) {
-            left = viewportWidth - containerWidth - 20;
-        }
-
-        if (left < 20) {
-            left = 20;
-        }
-
-        // Apply positioning
-        container.style.left = left + 'px';
-    }
-}
 
 window.toggleAttachmentMenu = function() {
     const container = document.getElementById('attachmentMenu');
@@ -421,12 +353,8 @@ window.toggleAttachmentMenu = function() {
 };
 
 function hideEmojiPicker() {
-    const container = document.getElementById('emojiPickerContainer');
-    if (container && container.classList.contains('show')) {
-        container.classList.remove('show');
-        setTimeout(() => {
-            container.style.display = 'none';
-        }, 200); // Wait for animation to complete
+    if (emojiPicker) {
+        emojiPicker.hide();
     }
 }
 
@@ -738,10 +666,18 @@ async function sendVoiceMessage(audioFile, duration) {
         // Show loading state
         showInfoToast('Sending voice message...');
 
-        // Convert audio file to base64
+        // Convert audio file to base64 (prevent stack overflow for large files)
         const arrayBuffer = await audioFile.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
-        const base64String = btoa(String.fromCharCode.apply(null, uint8Array));
+
+        // Convert in chunks to prevent stack overflow
+        let binaryString = '';
+        const chunkSize = 8192;
+        for (let i = 0; i < uint8Array.length; i += chunkSize) {
+            const chunk = uint8Array.slice(i, i + chunkSize);
+            binaryString += String.fromCharCode.apply(null, chunk);
+        }
+        const base64String = btoa(binaryString);
 
         // Find the ChatInterface component
         const messageInputElement = document.getElementById('chat-message-input');
@@ -784,37 +720,88 @@ function toggleVoiceMessage(button) {
     const audioSrc = player.getAttribute('data-audio-src');
     const playIcon = button.querySelector('i');
 
-    // Get or create audio element
-    let audio = player.querySelector('audio');
+    // Check if we already have a stable audio element for this source
+    let audio = activeAudioElements.get(audioSrc);
+
     if (!audio) {
+        // Create new audio element and store it
         audio = document.createElement('audio');
         audio.src = audioSrc;
         audio.preload = 'metadata';
-        player.appendChild(audio);
+        audio.style.display = 'none';
 
-        // Add event listeners
+        // Store reference to prevent garbage collection
+        activeAudioElements.set(audioSrc, audio);
+
+        // Add to DOM (append to body to prevent removal during updates)
+        document.body.appendChild(audio);
+
+        // Add event listeners only once
         audio.addEventListener('ended', function() {
             playIcon.className = 'fas fa-play';
             resetVoiceMessageProgress(player);
+            // Clean up reference when audio ends
+            activeAudioElements.delete(audioSrc);
+            if (audio.parentNode) {
+                audio.parentNode.removeChild(audio);
+            }
         });
 
         audio.addEventListener('timeupdate', function() {
-            updateVoiceMessageProgress(player, audio);
+            // Find current player in DOM (it might have been updated)
+            const currentPlayer = document.querySelector(`[data-audio-src="${audioSrc}"]`);
+            if (currentPlayer) {
+                updateVoiceMessageProgress(currentPlayer, audio);
+            }
+        });
+
+        audio.addEventListener('loadedmetadata', function() {
+            const currentPlayer = document.querySelector(`[data-audio-src="${audioSrc}"]`);
+            if (currentPlayer) {
+                const durationElement = currentPlayer.querySelector('.voice-duration');
+                if (durationElement && audio.duration) {
+                    const minutes = Math.floor(audio.duration / 60);
+                    const seconds = Math.floor(audio.duration % 60);
+                    durationElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                }
+            }
+        });
+
+        audio.addEventListener('error', function(e) {
+            console.error('Audio error:', e);
+            showErrorToast('Error playing voice message');
+            playIcon.className = 'fas fa-play';
+            activeAudioElements.delete(audioSrc);
+            if (audio.parentNode) {
+                audio.parentNode.removeChild(audio);
+            }
         });
     }
 
     if (audio.paused) {
         // Stop any other playing voice messages
-        document.querySelectorAll('.voice-message-player audio').forEach(otherAudio => {
+        activeAudioElements.forEach((otherAudio, otherSrc) => {
             if (otherAudio !== audio && !otherAudio.paused) {
                 otherAudio.pause();
-                const otherButton = otherAudio.closest('.voice-message-player').querySelector('.voice-play-btn i');
-                otherButton.className = 'fas fa-play';
+                const otherPlayer = document.querySelector(`[data-audio-src="${otherSrc}"]`);
+                if (otherPlayer) {
+                    const otherButton = otherPlayer.querySelector('.voice-play-btn i');
+                    if (otherButton) {
+                        otherButton.className = 'fas fa-play';
+                    }
+                    resetVoiceMessageProgress(otherPlayer);
+                }
             }
         });
 
-        audio.play();
-        playIcon.className = 'fas fa-pause';
+        // Play the audio
+        audio.play().then(() => {
+            playIcon.className = 'fas fa-pause';
+        }).catch(error => {
+            console.error('Error playing audio:', error);
+            showErrorToast('Could not play voice message');
+            playIcon.className = 'fas fa-play';
+        });
     } else {
         audio.pause();
         playIcon.className = 'fas fa-play';
@@ -824,6 +811,7 @@ function toggleVoiceMessage(button) {
 function updateVoiceMessageProgress(player, audio) {
     const progressBar = player.querySelector('.voice-progress');
     const waveformBars = player.querySelectorAll('.voice-waveform-bar');
+    const durationElement = player.querySelector('.voice-duration');
 
     if (progressBar && audio.duration) {
         const progress = (audio.currentTime / audio.duration) * 100;
@@ -834,12 +822,22 @@ function updateVoiceMessageProgress(player, audio) {
         waveformBars.forEach((bar, index) => {
             bar.classList.toggle('active', index <= activeBarIndex);
         });
+
+        // Update duration countdown
+        if (durationElement) {
+            const remainingTime = audio.duration - audio.currentTime;
+            const minutes = Math.floor(remainingTime / 60);
+            const seconds = Math.floor(remainingTime % 60);
+            durationElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        }
     }
 }
 
 function resetVoiceMessageProgress(player) {
     const progressBar = player.querySelector('.voice-progress');
     const waveformBars = player.querySelectorAll('.voice-waveform-bar');
+    const durationElement = player.querySelector('.voice-duration');
+    const audio = player.querySelector('audio');
 
     if (progressBar) {
         progressBar.style.width = '0%';
@@ -848,7 +846,17 @@ function resetVoiceMessageProgress(player) {
     waveformBars.forEach(bar => {
         bar.classList.remove('active');
     });
+
+    // Reset duration to full duration
+    if (durationElement && audio && audio.duration) {
+        const minutes = Math.floor(audio.duration / 60);
+        const seconds = Math.floor(audio.duration % 60);
+        durationElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
 }
+
+// Simple audio management - store audio references to prevent DOM removal
+const activeAudioElements = new Map();
 
 // Add voice recording functions to global window object
 window.toggleVoiceRecorder = toggleVoiceRecorder;

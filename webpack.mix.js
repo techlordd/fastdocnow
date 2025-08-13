@@ -19,12 +19,10 @@ mix.autoload({
 
 mix.js('resources/js/app.js', 'public/js')
     .js('resources/js/chat.js', 'public/js')
-    .js('resources/js/emoji-picker.js', 'public/js')
     .postCss('resources/css/app.css', 'public/css', [
         require('tailwindcss'),
         require('autoprefixer'),
-    ])
-    .postCss('resources/css/emoji-picker.css', 'public/css');
+    ]);
 
 mix.styles('node_modules/select2/dist/css/select2.min.css', 'public/css/select2.min.css');
 mix.js('node_modules/select2/dist/js/select2.min.js', 'public/js/select2.min.js');

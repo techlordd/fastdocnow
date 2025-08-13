@@ -392,7 +392,7 @@
             </button>
 
             <div class="emoji-picker-container" id="emojiPickerContainer" style="display: none;">
-                <emoji-picker class="emoji-picker"></emoji-picker>
+                <!-- Emoji picker will be initialized here -->
             </div>
 
             <!-- Voice Recording UI -->
