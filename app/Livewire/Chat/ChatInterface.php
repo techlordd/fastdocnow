@@ -133,7 +133,7 @@ class ChatInterface extends Component
 
     public function markAsUnread()
     {
-        if (!$this.conversation) return;
+        if (!$this->conversation) return;
 
         // Remove all read receipts for current user
         $this->conversation->messages()
@@ -352,6 +352,71 @@ class ChatInterface extends Component
         $this->sendMessage();
     }
 
+    public function sendVoiceMessage($metadata = [])
+    {
+        if (empty($this->selectedFiles)) {
+            $this->dispatch('error', 'No voice message to send.');
+            return;
+        }
+
+        if (!$this->conversation) {
+            $this->dispatch('error', 'Please select a conversation first.');
+            return;
+        }
+
+        try {
+            // Process voice message with metadata
+            $attachments = $this->processVoiceMessage($metadata);
+
+            // Create message
+            $message = Message::create([
+                'conversation_id' => $this->conversation->id,
+                'user_id' => Auth::id(),
+                'content' => '', // Voice messages don't have text content
+                'type' => Message::TYPE_AUDIO,
+                'attachments' => $attachments,
+            ]);
+
+            // Load relationships for broadcasting
+            $message->load('user');
+
+            // Update conversation timestamp
+            $this->conversation->touch();
+
+            // Add this line to update last_seen_at
+            Auth::user()->updateLastSeen();
+
+            // Clear form first
+            $this->reset(['selectedFiles', 'showAttachmentPreview']);
+
+            // Refresh messages immediately
+            $this->loadMessages();
+
+            // Broadcast to other users
+            broadcast(new MessageSent($message))->toOthers();
+
+            // Send email notifications
+            $recipients = $this->conversation->participants()->where('user_id', '!=', Auth::id())->get();
+            foreach ($recipients as $recipient) {
+                if ($recipient->email_notifications) {
+                    try {
+                        \Illuminate\Support\Facades\Mail::to($recipient->notification_email ?? $recipient->email)->send(new \App\Mail\NewMessageEmail($message, Auth::user()));
+                    } catch (\Exception $e) {
+                        // Fail silently
+                    }
+                }
+            }
+
+            // Dispatch events
+            $this->dispatch('messageAdded');
+            $this->dispatch('scroll-to-bottom');
+            $this->dispatch('success', 'Voice message sent successfully!');
+
+        } catch (\Exception $e) {
+            $this->dispatch('error', 'Failed to send voice message: ' . $e->getMessage());
+        }
+    }
+
     private function processAttachments()
     {
         if (empty($this->selectedFiles)) {
@@ -412,6 +477,43 @@ class ChatInterface extends Component
         return $attachments;
     }
 
+    private function processVoiceMessage($metadata = [])
+    {
+        if (empty($this->selectedFiles)) {
+            return null;
+        }
+
+        $attachments = [];
+
+        foreach ($this->selectedFiles as $file) {
+            if (!$file) continue;
+
+            $filename = time() . '_' . uniqid() . '_voice_message.webm';
+            $mimeType = $file->getClientMimeType();
+
+            // Store file in voice messages directory
+            $path = $file->storeAs("messages/audios", $filename, 'public');
+
+            $voiceMetadata = [
+                'mime_type' => $mimeType,
+                'original_name' => $file->getClientOriginalName(),
+                'is_voice_message' => true,
+                'duration' => $metadata['duration'] ?? null,
+                'recorded_at' => now()->toISOString(),
+            ];
+
+            $attachments[] = [
+                'path' => $path,
+                'name' => 'Voice Message',
+                'size' => $file->getSize(),
+                'type' => $mimeType,
+                'metadata' => $voiceMetadata
+            ];
+        }
+
+        return $attachments;
+    }
+
     private function determineMessageType($attachments)
     {
         if (empty($attachments)) {
@@ -424,7 +526,7 @@ class ChatInterface extends Component
 
             $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
             $videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
-            $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma'];
+            $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma', 'webm'];
 
             if (in_array($extension, $imageExtensions)) return 'image';
             if (in_array($extension, $videoExtensions)) return 'video';
