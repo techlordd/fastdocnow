@@ -66,6 +66,10 @@
 
         </div>
         <div class="ms-auto d-flex align-items-center gap-2">
+            <!-- Debug Refresh Button (remove in production) -->
+            <button class="btn btn-sm btn-outline-primary" wire:click="refreshMessages" title="Refresh Messages">
+                <i class="fas fa-refresh"></i>
+            </button>
 
             <!-- Options Menu -->
             <div class="dropdown">
@@ -89,7 +93,7 @@
     </div>
 
     <!-- Messages Area -->
-    <div class="chat-messages custom-scrollbar position-relative">
+    <div class="chat-messages custom-scrollbar position-relative" wire:poll.5s="refreshMessages">
         @forelse($messages as $message)
         <div class="message-group mb-3" wire:key="message-{{ $message['id'] }}">
             <div class="message {{ $message['user_id'] === auth()->id() ? 'sent' : '' }}">

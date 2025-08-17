@@ -29,9 +29,7 @@ class ChatInterface extends Component
 
     protected $listeners = [
         'conversationSelected' => 'loadConversation',
-        'refreshMessages' => 'loadMessages',
-        'echo-private:conversation.{conversation.id},MessageSent' => 'messageReceived',
-        'echo-private:conversation.{conversation.id},UserTyping' => 'userTyping'
+        'refreshMessages' => 'loadMessages'
     ];
 
     public function mount($conversationId = null)
@@ -168,7 +166,19 @@ class ChatInterface extends Component
 
     public function refreshMessages()
     {
+        \Log::info('ChatInterface: Refresh messages called');
         $this->loadMessages();
+        $this->dispatch('scroll-to-bottom');
+    }
+
+    public function forceRefresh()
+    {
+        \Log::info('ChatInterface: Force refresh called');
+        if ($this->conversation) {
+            $this->loadMessages();
+            $this->dispatch('scroll-to-bottom');
+            $this->dispatch('messageAdded');
+        }
     }
 
     public function sendMessage()
@@ -298,6 +308,8 @@ class ChatInterface extends Component
 
     public function messageReceived($event)
     {
+        \Log::info('ChatInterface: Message received', ['event' => $event, 'current_conversation' => $this->conversation?->id]);
+
         // Always reload messages if we have a conversation loaded
         if ($this->conversation) {
             $this->loadMessages();
@@ -323,6 +335,10 @@ class ChatInterface extends Component
 
             // Update sidebar
             $this->dispatch('conversationUpdated', ['id' => $this->conversation->id]);
+
+            \Log::info('ChatInterface: Messages reloaded', ['message_count' => count($this->messages)]);
+        } else {
+            \Log::warning('ChatInterface: No conversation loaded when message received');
         }
     }
 

@@ -400,39 +400,20 @@ window.ChatApp = {
 // Real-time message handling
 function setupChatPresence(conversationId) {
     if (window.Echo && conversationId) {
-        console.log('Setting up real-time listeners for conversation:', conversationId);
+        console.log('🟢 Setting up real-time listeners for conversation:', conversationId);
 
         // Listen for new messages
         window.Echo.private(`conversation.${conversationId}`)
             .listen('MessageSent', (e) => {
-                console.log('New message received:', e);
-
-                // Get the Livewire component
-                const chatComponent = window.Livewire.find(
-                    document.querySelector('[wire\\:id*="chat"]')?.getAttribute('wire:id')
-                );
-
-                if (chatComponent) {
-                    // Call the messageReceived method on the component
-                    chatComponent.call('messageReceived', e);
-                } else {
-                    console.error('Chat component not found');
-                }
+                console.log('🟢 New message received via Echo:', e);
+                handleIncomingMessage(e);
             })
             .listen('UserTyping', (e) => {
-                console.log('User typing event:', e);
-
-                // Get the Livewire component
-                const chatComponent = window.Livewire.find(
-                    document.querySelector('[wire\\:id*="chat"]')?.getAttribute('wire:id')
-                );
-
-                if (chatComponent) {
-                    chatComponent.call('userTyping', e);
-                }
+                console.log('🟢 User typing event:', e);
+                handleUserTyping(e);
             })
             .error((error) => {
-                console.error('Echo private channel error:', error);
+                console.error('🔴 Echo private channel error:', error);
             });
 
         // Optional: Join presence channel for online status
@@ -890,6 +871,86 @@ function resetVoiceMessageProgress(player) {
 
 // Simple audio management - store audio references to prevent DOM removal
 const activeAudioElements = new Map();
+
+// Handle incoming messages from Pusher
+function handleIncomingMessage(e) {
+    console.log('🟢 Handling incoming message:', e);
+
+    try {
+        // Method 1: Find the chat interface component by its unique ID
+        const chatMainElement = document.getElementById('chatMain');
+        if (chatMainElement) {
+            const wireId = chatMainElement.getAttribute('wire:id');
+            if (wireId) {
+                const chatComponent = window.Livewire.find(wireId);
+                if (chatComponent) {
+                    console.log('🟢 Found chat component by chatMain ID:', chatComponent);
+                    chatComponent.call('refreshMessages');
+                    scrollToBottom();
+                    return;
+                }
+            }
+        }
+
+        // Method 2: Find by the main chat area class
+        const chatMessagesElement = document.querySelector('.chat-messages');
+        if (chatMessagesElement) {
+            const parentWithWireId = chatMessagesElement.closest('[wire\\:id]');
+            if (parentWithWireId) {
+                const wireId = parentWithWireId.getAttribute('wire:id');
+                const chatComponent = window.Livewire.find(wireId);
+                if (chatComponent) {
+                    console.log('🟢 Found chat component by messages area:', chatComponent);
+                    chatComponent.call('refreshMessages');
+                    scrollToBottom();
+                    return;
+                }
+            }
+        }
+
+        // Method 3: Brute force search through all components
+        console.log('🟡 Searching all Livewire components...');
+        const allComponents = window.Livewire.all();
+        for (const [id, component] of Object.entries(allComponents)) {
+            if (component.name === 'chat.chat-interface' ||
+                component.el.classList.contains('chat-main') ||
+                component.el.id === 'chatMain') {
+                console.log('🟢 Found chat component by brute force:', component);
+                component.call('refreshMessages');
+                scrollToBottom();
+                return;
+            }
+        }
+
+        console.error('🔴 No chat component found! Available components:');
+        Object.entries(allComponents).forEach(([id, comp]) => {
+            console.log(`  - ${id}: ${comp.name} (element: ${comp.el.tagName}${comp.el.id ? '#' + comp.el.id : ''})`);
+        });
+
+        // Last resort: reload the page
+        console.warn('🔴 Reloading page as fallback...');
+        setTimeout(() => window.location.reload(), 1000);
+
+    } catch (error) {
+        console.error('🔴 Error handling incoming message:', error);
+        console.error('Error details:', error.stack);
+    }
+}
+
+// Handle user typing events
+function handleUserTyping(e) {
+    try {
+        const chatComponent = window.Livewire.find(
+            document.querySelector('[wire\\:id*="chat"]')?.getAttribute('wire:id')
+        );
+
+        if (chatComponent) {
+            chatComponent.call('userTyping', e);
+        }
+    } catch (error) {
+        console.error('Error handling typing event:', error);
+    }
+}
 
 // Add voice recording functions to global window object
 window.toggleVoiceRecorder = toggleVoiceRecorder;
