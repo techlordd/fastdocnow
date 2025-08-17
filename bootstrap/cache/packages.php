@@ -1,4 +1,11 @@
 <?php return array (
+  'jgrossi/corcel' => 
+  array (
+    'providers' => 
+    array (
+      0 => 'Corcel\\Laravel\\CorcelServiceProvider',
+    ),
+  ),
   'laravel/breeze' => 
   array (
     'providers' => 

@@ -12,13 +12,11 @@
         "queue:listen": "php artisan queue:listen",
         "migrate": "php artisan migrate",
         "seed": "php artisan db:seed",
-        "setup": "npm install && composer install && php artisan migrate --seed",
-        "vercel-build": "npm run production"
+        "setup": "npm install && composer install && php artisan migrate --seed"
     },
     "devDependencies": {
         "@tailwindcss/forms": "^0.5.7",
         "@tailwindcss/typography": "^0.5.10",
-        "alpinejs": "^3.13.3",
         "autoprefixer": "^10.4.16",
         "axios": "^1.6.2",
         "jquery": "^3.7.1",
@@ -31,7 +29,6 @@
         "@emoji-mart/data": "^1.2.1",
         "@fancyapps/ui": "^6.0.22",
         "@fortawesome/fontawesome-free": "^6.5.0",
-        "@headlessui/vue": "^1.7.16",
         "emoji-mart": "^5.6.0",
         "laravel-echo": "^2.1.7",
         "pusher-js": "^8.4.0",

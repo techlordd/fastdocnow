@@ -4,11 +4,13 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\WordPressAuthService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class AuthController extends Controller
@@ -25,7 +27,7 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email',
+            'email' => 'required|string',
             'password' => 'required|min:6',
         ]);
 
@@ -36,17 +38,45 @@ class AuthController extends Controller
         $credentials = $request->only('email', 'password');
         $remember = $request->has('remember');
 
+        // First try standard Laravel authentication
         if (Auth::attempt($credentials, $remember)) {
             $request->session()->regenerate();
-            
+
             // Update user's last login
             Auth::user()->update([
                 'last_login_at' => now(),
                 'last_login_ip' => $request->ip(),
             ]);
 
+            Log::info('User logged in successfully via Laravel authentication', [
+                'user_id' => Auth::id(),
+                'email' => Auth::user()->email
+            ]);
+
             return redirect()->intended(route('chat.index'));
         }
+
+        // If Laravel auth fails, try WordPress authentication
+        $wordpressAuth = app(WordPressAuthService::class);
+
+        if ($wordpressAuth->isWordPressConnectionAvailable() &&
+            $wordpressAuth->attemptWordPressLogin($credentials, $remember)) {
+
+            $request->session()->regenerate();
+
+            Log::info('User logged in successfully via WordPress authentication', [
+                'user_id' => Auth::id(),
+                'email' => Auth::user()->email
+            ]);
+
+            return redirect()->intended(route('chat.index'))->with('success', 'Welcome! You have been logged in via WordPress.');
+        }
+
+        // Both authentication methods failed
+        Log::warning('Login attempt failed for both Laravel and WordPress authentication', [
+            'email' => $credentials['email'],
+            'ip' => $request->ip()
+        ]);
 
         return back()->withErrors([
             'email' => 'Invalid credentials provided.',
