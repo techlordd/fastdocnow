@@ -29,7 +29,9 @@ class ChatInterface extends Component
 
     protected $listeners = [
         'conversationSelected' => 'loadConversation',
-        'refreshMessages' => 'loadMessages'
+        'refreshMessages' => 'loadMessages',
+        'echo-private:conversation.{conversation.id},MessageSent' => 'messageReceived',
+        'echo-private:conversation.{conversation.id},UserTyping' => 'userTyping'
     ];
 
     public function mount($conversationId = null)

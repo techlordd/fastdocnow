@@ -43,7 +43,7 @@
             }
             @endphp
             @if($contactAvatar)
-            <img src="{{ asset('storage/' . $contactAvatar) }}" alt="{{ $contactName }}">
+            <img src="{{ asset('public/storage/' . $contactAvatar) }}" alt="{{ $contactName }}">
             @else
             {{ strtoupper(substr($contactName, 0, 1)) }}{{ strtoupper(substr($contactLastName, 0, 1)) }}
             @endif
@@ -89,7 +89,7 @@
     </div>
 
     <!-- Messages Area -->
-    <div class="chat-messages custom-scrollbar position-relative" wire:poll.3s="refreshMessages">
+    <div class="chat-messages custom-scrollbar position-relative">
         @forelse($messages as $message)
         <div class="message-group mb-3" wire:key="message-{{ $message['id'] }}">
             <div class="message {{ $message['user_id'] === auth()->id() ? 'sent' : '' }}">
@@ -122,7 +122,7 @@
                     @if($isImage)
                     <div class="message-image-container mb-2">
                         @php
-                        $imagePath = '/storage/' . $attachment['path'];
+                        $imagePath = 'public/storage/' . $attachment['path'];
                         @endphp
                         <a href="{{ $imagePath }}" data-fancybox="chat-images" data-caption="{{ $attachment['name'] }}" class="attacthment_mesg">
                             <img src="{{ $imagePath }}" alt="{{ $attachment['name'] }}" class="message-image" loading="lazy" style="max-width: 360px; border-radius: 12px; cursor: pointer;">
@@ -144,7 +144,7 @@
                         $mimeType = $videoMimeTypes[$extension] ?? 'video/mp4';
                         @endphp
                         <video controls class="message-video" preload="metadata" style="max-width: 360px; border-radius: 12px;">
-                            <source src="/storage/{{ $attachment['path'] }}" type="{{ $mimeType }}">
+                            <source src="public/storage/{{ $attachment['path'] }}" type="{{ $mimeType }}">
                             Your browser does not support the video tag.
                         </video>
                     </div>
@@ -168,7 +168,7 @@
 
                         @if($isVoiceMessage)
                         <!-- Voice Message Player -->
-                        <div class="voice-message-player" data-audio-src="/storage/{{ $attachment['path'] }}">
+                        <div class="voice-message-player" data-audio-src="public/storage/{{ $attachment['path'] }}">
                             <button class="voice-play-btn" onclick="toggleVoiceMessage(this)" title="Play voice message">
                                 <i class="fas fa-play"></i>
                             </button>
@@ -213,14 +213,14 @@
                         @else
                         <!-- Regular Audio Player -->
                         <audio controls preload="metadata">
-                            <source src="/storage/{{ $attachment['path'] }}" type="{{ $mimeType }}">
+                            <source src="public/storage/{{ $attachment['path'] }}" type="{{ $mimeType }}">
                             Your browser does not support the audio element.
                         </audio>
                         @endif
                     </div>
                     @else
                     <div class="message-file-container mb-2">
-                        <a href="/storage/{{ $attachment['path'] }}" target="_blank" class="message-file-link" rel="noopener noreferrer">
+                        <a href="public/storage/{{ $attachment['path'] }}" target="_blank" class="message-file-link" rel="noopener noreferrer">
                             <div class="file-preview" style="max-width: 360px; border-radius: 12px; padding: 8px; background-color: #f0f0f0;">
                                 <i class="fas fa-file-alt fa-2x text-primary"></i>
                                 <div class="file-info">

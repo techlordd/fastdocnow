@@ -14,7 +14,7 @@
                             <div class="d-flex align-items-center">
                                 <div class="profile-avatar-large me-2">
                                     @if(auth()->user()->avatar)
-                                    <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="{{ auth()->user()->name }}"
+                                    <img src="{{ asset('public/storage/' . auth()->user()->avatar) }}" alt="{{ auth()->user()->name }}"
                                         class="rounded-circle me-2" width="50" height="50">
                                     @else
                                     <div class="user-avatar me-2" style="width: 50px; height: 50px; font-size: 14px;">

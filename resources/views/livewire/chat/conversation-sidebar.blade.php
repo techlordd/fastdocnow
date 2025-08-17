@@ -62,7 +62,7 @@
                         <li class="px-3 py-2 border-bottom">
                             <div class="d-flex align-items-center">
                                 @if(auth()->user()->avatar)
-                                <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="{{ auth()->user()->name }}"
+                                <img src="{{ asset('public/storage/' . auth()->user()->avatar) }}" alt="{{ auth()->user()->name }}"
                                     class="rounded-circle me-2" width="32" height="32">
                                 @else
                                 <div class="user-avatar me-2" style="width: 32px; height: 32px; font-size: 14px;">

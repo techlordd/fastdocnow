@@ -397,25 +397,58 @@ window.ChatApp = {
     confirmAction: window.confirmAction
 };
 
-// Add this function to chat.js
+// Real-time message handling
 function setupChatPresence(conversationId) {
     if (window.Echo && conversationId) {
+        console.log('Setting up real-time listeners for conversation:', conversationId);
+
+        // Listen for new messages
+        window.Echo.private(`conversation.${conversationId}`)
+            .listen('MessageSent', (e) => {
+                console.log('New message received:', e);
+
+                // Get the Livewire component
+                const chatComponent = window.Livewire.find(
+                    document.querySelector('[wire\\:id*="chat"]')?.getAttribute('wire:id')
+                );
+
+                if (chatComponent) {
+                    // Call the messageReceived method on the component
+                    chatComponent.call('messageReceived', e);
+                } else {
+                    console.error('Chat component not found');
+                }
+            })
+            .listen('UserTyping', (e) => {
+                console.log('User typing event:', e);
+
+                // Get the Livewire component
+                const chatComponent = window.Livewire.find(
+                    document.querySelector('[wire\\:id*="chat"]')?.getAttribute('wire:id')
+                );
+
+                if (chatComponent) {
+                    chatComponent.call('userTyping', e);
+                }
+            })
+            .error((error) => {
+                console.error('Echo private channel error:', error);
+            });
+
+        // Optional: Join presence channel for online status
         window.Echo.join(`chat.${conversationId}`)
             .here((users) => {
-                // This is the initial list of users in the channel
                 console.log('Users in channel:', users);
                 users.forEach(user => {
-                    updateUserStatus(user.id, true); // Mark all initial users as online
+                    updateUserStatus(user.id, true);
                 });
             })
             .joining((user) => {
-                // A new user joined
                 console.log('User joining:', user);
                 updateUserStatus(user.id, true);
                 showInfoToast(`${user.first_name} ${user.last_name} is now online.`);
             })
             .leaving((user) => {
-                // A user left
                 console.log('User leaving:', user);
                 updateUserStatus(user.id, false);
                 showInfoToast(`${user.first_name} ${user.last_name} went offline.`);

@@ -206,7 +206,7 @@
                     <a class="nav-link dropdown-toggle d-flex align-items-center px-3" href="#" data-bs-toggle="dropdown">
                         <div class="user-avatar-sm me-2">
                             @if(auth()->user()->avatar)
-                            <img src="{{ asset('storage/' . auth()->user()->avatar) }}" alt="Avatar" class="rounded-circle">
+                            <img src="{{ asset('public/storage/' . auth()->user()->avatar) }}" alt="Avatar" class="rounded-circle">
                             @else
                             {{ strtoupper(substr(auth()->user()->first_name, 0, 1)) }}
                             @endif
