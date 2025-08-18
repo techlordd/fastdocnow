@@ -115,7 +115,7 @@
     </div>
     @endif
     <!-- Active Conversations Section -->
-    <div wire:poll.10s="loadContactsAndConversations">
+    <div wire:poll.30s="loadContactsAndConversations">
         @if(!empty($conversations) || !empty($conversationSearchTerm))
         <div class="px-3 pt-3 pb-2">
             <div class="d-flex align-items-center justify-content-between mb-3">

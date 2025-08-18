@@ -134,9 +134,28 @@ import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 window.Pusher = Pusher;
 
-window.Echo = new Echo({
-    broadcaster: 'pusher',
-    key: import.meta.env.VITE_PUSHER_APP_KEY,
-    cluster: import.meta.env.VITE_PUSHER_APP_CLUSTER,
-    forceTLS: true
-});
+// Initialize Echo with error handling
+try {
+    const pusherKey = process.env.MIX_PUSHER_APP_KEY;
+    const pusherCluster = process.env.MIX_PUSHER_APP_CLUSTER;
+
+    if (pusherKey && pusherCluster) {
+        window.Echo = new Echo({
+            broadcaster: 'pusher',
+            key: pusherKey,
+            cluster: pusherCluster,
+            forceTLS: true
+        });
+        console.log('🟢 Echo initialized successfully with key:', pusherKey.substring(0, 8) + '...');
+    } else {
+        console.warn('🟡 Pusher credentials not found - real-time messaging disabled');
+        console.warn('Available env vars:', {
+            key: pusherKey ? 'present' : 'missing',
+            cluster: pusherCluster ? 'present' : 'missing'
+        });
+        window.Echo = null;
+    }
+} catch (error) {
+    console.error('🔴 Failed to initialize Echo:', error);
+    window.Echo = null;
+}

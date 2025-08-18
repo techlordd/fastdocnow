@@ -18,7 +18,6 @@ class ChatInterface extends Component
     use WithFileUploads;
 
     public $conversation;
-    public $messages = [];
     public $messageText = '';
     public $selectedFiles = [];
     public $attachmentCaption = '';
@@ -28,8 +27,7 @@ class ChatInterface extends Component
     public $isSendingVoiceMessage = false;
 
     protected $listeners = [
-        'conversationSelected' => 'loadConversation',
-        'refreshMessages' => 'loadMessages'
+        'conversationSelected' => 'loadConversation'
     ];
 
     public function mount($conversationId = null)
@@ -41,7 +39,7 @@ class ChatInterface extends Component
 
     public function loadConversation($conversationId)
     {
-        $this->conversation = Conversation::with(['participants', 'messages.user', 'contact'])
+        $this->conversation = Conversation::with(['participants', 'contact'])
             ->where('id', $conversationId)
             ->whereHas('participants', function($query) {
                 $query->where('user_id', Auth::id());
@@ -49,12 +47,13 @@ class ChatInterface extends Component
             ->first();
 
         if ($this->conversation) {
-            $this->loadMessages();
-            $this->markMessagesAsRead();
             $this->dispatch('conversationLoaded', $this->conversation->id);
             $this->dispatch('scroll-to-bottom');
             // Add this line to update last_seen_at
             Auth::user()->updateLastSeen();
+
+            // Notify the chat messages component
+            $this->dispatch('conversationSelected', $this->conversation->id);
         }
     }
 
@@ -152,22 +151,12 @@ class ChatInterface extends Component
 
 
 
-    public function loadMessages()
-    {
-        if (!$this->conversation) return;
-
-        $this->messages = $this->conversation->messages()
-            ->with(['user'])
-            ->select(['id', 'conversation_id', 'user_id', 'content', 'type', 'attachments', 'created_at', 'updated_at'])
-            ->orderBy('created_at', 'asc')
-            ->get()
-            ->toArray();
-    }
-
     public function refreshMessages()
     {
         \Log::info('ChatInterface: Refresh messages called');
-        $this->loadMessages();
+        if ($this->conversation) {
+            $this->dispatch('refreshChatMessages', ['id' => $this->conversation->id]);
+        }
         $this->dispatch('scroll-to-bottom');
     }
 
@@ -175,7 +164,7 @@ class ChatInterface extends Component
     {
         \Log::info('ChatInterface: Force refresh called');
         if ($this->conversation) {
-            $this->loadMessages();
+            $this->dispatch('refreshChatMessages', ['id' => $this->conversation->id]);
             $this->dispatch('scroll-to-bottom');
             $this->dispatch('messageAdded');
         }
@@ -217,8 +206,8 @@ class ChatInterface extends Component
             // Clear form first
             $this->reset(['messageText', 'selectedFiles', 'attachmentCaption', 'showAttachmentPreview']);
 
-            // Refresh messages immediately
-            $this->loadMessages();
+            // Refresh messages in the chat messages component
+            $this->dispatch('refreshChatMessages', ['id' => $this->conversation->id]);
 
             // Broadcast to other users
             broadcast(new MessageSent($message))->toOthers();
@@ -245,32 +234,7 @@ class ChatInterface extends Component
         }
     }
 
-    public function deleteMessage($messageId)
-    {
-        $message = Message::find($messageId);
 
-        if (!$message || $message->user_id !== Auth::id()) {
-            $this->dispatch('error', 'You can only delete your own messages.');
-            return;
-        }
-
-        // Delete associated files
-        if ($message->attachments) {
-            foreach ($message->attachments as $attachment) {
-                if (isset($attachment['path']) && Storage::disk('public')->exists($attachment['path'])) {
-                    Storage::disk('public')->delete($attachment['path']);
-                }
-                // Delete thumbnail if exists
-                if (isset($attachment['metadata']['thumbnail_path']) && Storage::disk('public')->exists($attachment['metadata']['thumbnail_path'])) {
-                    Storage::disk('public')->delete($attachment['metadata']['thumbnail_path']);
-                }
-            }
-        }
-
-        $message->delete();
-        $this->loadMessages();
-        $this->dispatch('success', 'Message deleted successfully!');
-    }
 
 
 
@@ -312,31 +276,39 @@ class ChatInterface extends Component
 
         // Always reload messages if we have a conversation loaded
         if ($this->conversation) {
-            $this->loadMessages();
+            // Check if this message is for the current conversation
+            if (isset($event['message']['conversation_id']) &&
+                $event['message']['conversation_id'] == $this->conversation->id) {
 
-            // Mark as read if this is the active conversation
-            if ($event['message']['conversation_id'] == $this->conversation->id) {
-                $this->markMessagesAsRead();
-            }
+                // Dispatch notification for messages from other users
+                if ($event['message']['user_id'] !== Auth::id()) {
+                    $this->dispatch('showNotification', [
+                        'title' => 'New Message from ' . $event['message']['user']['first_name'],
+                        'body' => $event['message']['content'],
+                        'conversationId' => $event['message']['conversation_id']
+                    ]);
+                }
 
-            // Dispatch notification
-            if ($event['message']['user_id'] !== Auth::id()) {
-                $this->dispatch('showNotification', [
-                    'title' => 'New Message from ' . $event['message']['user']['first_name'],
-                    'body' => $event['message']['content'],
-                    'conversationId' => $event['message']['conversation_id']
+                // Forward event to ChatMessages component specifically
+                $this->dispatch('messageReceived', $event);
+
+                // Also trigger refresh for immediate update
+                $this->dispatch('refreshChatMessages', ['id' => $this->conversation->id]);
+
+                // UI updates
+                $this->dispatch('scroll-to-bottom');
+                $this->dispatch('messageAdded');
+
+                // Update sidebar
+                $this->dispatch('conversationUpdated', ['id' => $this->conversation->id]);
+
+                \Log::info('ChatInterface: Message event forwarded to ChatMessages component');
+            } else {
+                \Log::info('ChatInterface: Message not for current conversation', [
+                    'message_conversation' => $event['message']['conversation_id'] ?? 'unknown',
+                    'current_conversation' => $this->conversation->id
                 ]);
             }
-
-            // Force immediate refresh of messages in chat body
-            $this->dispatch('refreshChatMessages', ['id' => $this->conversation->id]);
-            $this->dispatch('scroll-to-bottom');
-            $this->dispatch('messageAdded');
-
-            // Update sidebar
-            $this->dispatch('conversationUpdated', ['id' => $this->conversation->id]);
-
-            \Log::info('ChatInterface: Messages reloaded', ['message_count' => count($this->messages)]);
         } else {
             \Log::warning('ChatInterface: No conversation loaded when message received');
         }
@@ -438,7 +410,7 @@ class ChatInterface extends Component
             Auth::user()->updateLastSeen();
 
             // Refresh messages immediately
-            $this->loadMessages();
+            $this->dispatch('refreshChatMessages', ['id' => $this->conversation->id]);
 
             // Broadcast to other users
             broadcast(new MessageSent($message))->toOthers();
@@ -548,24 +520,7 @@ class ChatInterface extends Component
         return 'file';
     }
 
-    private function markMessagesAsRead()
-    {
-        if (!$this->conversation) return;
 
-        $this->conversation->messages()
-            ->where('user_id', '!=', Auth::id())
-            ->whereDoesntHave('readReceipts', function($query) {
-                $query->where('user_id', Auth::id());
-            })
-            ->get()
-            ->each(function ($message) {
-                $message->readReceipts()->firstOrCreate([
-                    'user_id' => Auth::id(),
-                ], [
-                    'read_at' => now(),
-                ]);
-            });
-    }
 
     public function getTypingUsersTextProperty()
     {

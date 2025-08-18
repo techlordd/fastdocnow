@@ -1,7 +1,7 @@
 {
-    "/js/app.js": "/js/app.js?id=c91199e037bc129cf2e49fddca6a0c0e",
-    "/js/chat.js": "/js/chat.js?id=a82828fe33045993f82480aed0507538",
-    "/js/select2.min.js": "/js/select2.min.js?id=9cbcef7f1ca449b8588f787c30b05a85",
-    "/css/app.css": "/css/app.css?id=16a2a0c99b3b2f9fc2a265dd5afb4dfc",
-    "/css/select2.min.css": "/css/select2.min.css?id=e71c39430469a3eea74514a2b48f6536"
+    "/js/app.js": "/js/app.js",
+    "/js/chat.js": "/js/chat.js",
+    "/js/select2.min.js": "/js/select2.min.js",
+    "/css/app.css": "/css/app.css",
+    "/css/select2.min.css": "/css/select2.min.css"
 }

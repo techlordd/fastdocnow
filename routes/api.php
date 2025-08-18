@@ -18,8 +18,4 @@ Route::middleware(['auth:sanctum'])->group(function () {
 });
 
 // Websocket authentication
-Route::middleware(['auth:sanctum'])->group(function () {
-    Route::post('/broadcasting/auth', function (Request $request) {
-        return response()->json(['auth' => $request->user()->createToken('websocket')->plainTextToken]);
-    });
-});
+// Broadcasting auth is now handled by BroadcastServiceProvider with web middleware

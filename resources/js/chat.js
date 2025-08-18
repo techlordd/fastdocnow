@@ -107,6 +107,11 @@ function initializeLivewireEvents() {
 
     // Listen for conversation loaded
     Livewire.on('conversationLoaded', (conversationId) => {
+        // Extract the ID if it's passed as an array or object
+        const actualConversationId = Array.isArray(conversationId) ? conversationId[0] :
+                                   (typeof conversationId === 'object' && conversationId.id) ? conversationId.id :
+                                   conversationId;
+
         setTimeout(() => {
             scrollToBottom(true);
             // Re-initialize emoji picker when conversation loads
@@ -114,7 +119,18 @@ function initializeLivewireEvents() {
             // Re-initialize textarea resize
             initializeTextareaResize();
         }, 100);
-        setupChatPresence(conversationId);
+
+        // Only setup chat presence if we have a valid conversation ID and it's different from current
+        if (actualConversationId && actualConversationId > 0) {
+            if (actualConversationId !== currentConversationId) {
+                console.log('🟢 New conversation loaded:', actualConversationId);
+                setupChatPresence(actualConversationId);
+            }
+            // Remove the repetitive "same conversation" log since it's not necessary
+            // and was causing console spam when the same conversation was loaded multiple times
+        } else {
+            console.warn('🟡 No valid conversation ID provided for real-time setup:', conversationId);
+        }
     });
 }
 
@@ -398,12 +414,69 @@ window.ChatApp = {
 };
 
 // Real-time message handling
+let currentConversationId = null;
+let echoChannels = new Map();
+let lastSetupTime = 0;
+let setupTimeout = null;
+
 function setupChatPresence(conversationId) {
-    if (window.Echo && conversationId) {
-        console.log('🟢 Setting up real-time listeners for conversation:', conversationId);
+    // Clear any pending setup timeout
+    if (setupTimeout) {
+        clearTimeout(setupTimeout);
+        setupTimeout = null;
+    }
+
+    // Validate inputs first
+    if (!conversationId || conversationId <= 0) {
+        console.warn('🟡 Invalid conversation ID provided:', conversationId);
+        return;
+    }
+
+    // Prevent duplicate setup for the same conversation
+    if (currentConversationId === conversationId) {
+        // Silently return without logging to prevent console spam
+        return;
+    }
+
+    // Add debounce to prevent rapid successive calls
+    const now = Date.now();
+    if (now - lastSetupTime < 1000) { // Prevent calls within 1 second
+        setupTimeout = setTimeout(() => setupChatPresence(conversationId), 500);
+        return;
+    }
+    lastSetupTime = now;
+
+    // Check if Echo is available
+    if (!window.Echo) {
+        console.warn('🟡 Echo not available - real-time messaging disabled');
+        return;
+    }
+
+    // Leave previous channels if switching conversations
+    if (currentConversationId && currentConversationId !== conversationId && echoChannels.size > 0) {
+        console.log('🟡 Leaving previous conversation channels:', currentConversationId);
+        echoChannels.forEach((channel, channelName) => {
+            try {
+                window.Echo.leave(channelName);
+            } catch (error) {
+                console.warn('Warning leaving channel:', channelName, error);
+            }
+        });
+        echoChannels.clear();
+    }
+
+    currentConversationId = conversationId;
+    console.log('🟢 Setting up real-time listeners for conversation:', conversationId);
+
+    try {
+        // Check Echo connection status (optional, don't fail if not available)
+        if (window.Echo.connector && window.Echo.connector.pusher) {
+            const pusher = window.Echo.connector.pusher;
+            console.log('🟢 Pusher connection state:', pusher.connection.state);
+        }
 
         // Listen for new messages
-        window.Echo.private(`conversation.${conversationId}`)
+        const messageChannel = window.Echo.private(`conversation.${conversationId}`)
             .listen('MessageSent', (e) => {
                 console.log('🟢 New message received via Echo:', e);
                 handleIncomingMessage(e);
@@ -416,27 +489,41 @@ function setupChatPresence(conversationId) {
                 console.error('🔴 Echo private channel error:', error);
             });
 
-        // Optional: Join presence channel for online status
-        window.Echo.join(`chat.${conversationId}`)
-            .here((users) => {
-                console.log('Users in channel:', users);
-                users.forEach(user => {
+        echoChannels.set(`conversation.${conversationId}`, messageChannel);
+
+        // Optional: Join presence channel for online status (don't fail if this doesn't work)
+        try {
+            const presenceChannel = window.Echo.join(`chat.${conversationId}`)
+                .here((users) => {
+                    console.log('🟢 Users currently in channel:', users);
+                    users.forEach(user => {
+                        updateUserStatus(user.id, true);
+                    });
+                })
+                .joining((user) => {
+                    console.log('🟢 User joining channel:', user.first_name);
                     updateUserStatus(user.id, true);
+                })
+                .leaving((user) => {
+                    console.log('🟡 User leaving channel:', user.first_name);
+                    updateUserStatus(user.id, false);
+                })
+                .error((error) => {
+                    // Presence channel auth failures are common and optional - just log as warning
+                    console.warn('🟡 Presence channel auth failed (optional feature):', error.error || error);
+                    // Don't show user-facing error for optional presence feature
                 });
-            })
-            .joining((user) => {
-                console.log('User joining:', user);
-                updateUserStatus(user.id, true);
-                showInfoToast(`${user.first_name} ${user.last_name} is now online.`);
-            })
-            .leaving((user) => {
-                console.log('User leaving:', user);
-                updateUserStatus(user.id, false);
-                showInfoToast(`${user.first_name} ${user.last_name} went offline.`);
-            })
-            .error((error) => {
-                console.error('Echo presence error:', error);
-            });
+
+            echoChannels.set(`chat.${conversationId}`, presenceChannel);
+        } catch (error) {
+            console.warn('🟡 Presence channel setup failed (optional feature):', error);
+        }
+
+        console.log('🟢 Real-time setup completed for conversation:', conversationId);
+
+    } catch (error) {
+        console.error('🔴 Error setting up real-time messaging:', error);
+        currentConversationId = null;
     }
 }
 
@@ -877,59 +964,65 @@ function handleIncomingMessage(e) {
     console.log('🟢 Handling incoming message:', e);
 
     try {
-        // Method 1: Find the chat interface component by its unique ID
+        let foundComponent = false;
+
+        // Method 1: Find ChatInterface component and let it handle message forwarding
         const chatMainElement = document.getElementById('chatMain');
         if (chatMainElement) {
             const wireId = chatMainElement.getAttribute('wire:id');
             if (wireId) {
-                const chatComponent = window.Livewire.find(wireId);
-                if (chatComponent) {
-                    console.log('🟢 Found chat component by chatMain ID:', chatComponent);
-                    chatComponent.call('refreshMessages');
-                    scrollToBottom();
-                    return;
+                const chatInterfaceComponent = window.Livewire.find(wireId);
+                if (chatInterfaceComponent) {
+                    console.log('🟢 Found ChatInterface component, calling messageReceived:', chatInterfaceComponent);
+                    chatInterfaceComponent.call('messageReceived', e);
+                    foundComponent = true;
                 }
             }
         }
 
-        // Method 2: Find by the main chat area class
-        const chatMessagesElement = document.querySelector('.chat-messages');
-        if (chatMessagesElement) {
-            const parentWithWireId = chatMessagesElement.closest('[wire\\:id]');
-            if (parentWithWireId) {
-                const wireId = parentWithWireId.getAttribute('wire:id');
-                const chatComponent = window.Livewire.find(wireId);
-                if (chatComponent) {
-                    console.log('🟢 Found chat component by messages area:', chatComponent);
-                    chatComponent.call('refreshMessages');
-                    scrollToBottom();
-                    return;
+        // Method 2: Find ChatMessages component directly
+        const chatMessagesElements = document.querySelectorAll('[wire\\:id*="chat-messages"]');
+        chatMessagesElements.forEach(element => {
+            const wireId = element.getAttribute('wire:id');
+            if (wireId) {
+                const chatMessagesComponent = window.Livewire.find(wireId);
+                if (chatMessagesComponent) {
+                    console.log('🟢 Found ChatMessages component, calling messageReceived:', chatMessagesComponent);
+                    chatMessagesComponent.call('messageReceived', e);
+                    foundComponent = true;
                 }
             }
-        }
-
-        // Method 3: Brute force search through all components
-        console.log('🟡 Searching all Livewire components...');
-        const allComponents = window.Livewire.all();
-        for (const [id, component] of Object.entries(allComponents)) {
-            if (component.name === 'chat.chat-interface' ||
-                component.el.classList.contains('chat-main') ||
-                component.el.id === 'chatMain') {
-                console.log('🟢 Found chat component by brute force:', component);
-                component.call('refreshMessages');
-                scrollToBottom();
-                return;
-            }
-        }
-
-        console.error('🔴 No chat component found! Available components:');
-        Object.entries(allComponents).forEach(([id, comp]) => {
-            console.log(`  - ${id}: ${comp.name} (element: ${comp.el.tagName}${comp.el.id ? '#' + comp.el.id : ''})`);
         });
 
-        // Last resort: reload the page
-        console.warn('🔴 Reloading page as fallback...');
-        setTimeout(() => window.location.reload(), 1000);
+        // Method 3: Brute force search through all components if nothing found
+        if (!foundComponent) {
+            console.log('🟡 Searching all Livewire components...');
+            const allComponents = window.Livewire.all();
+            for (const [id, component] of Object.entries(allComponents)) {
+                if (component.name === 'chat.chat-interface') {
+                    console.log('🟢 Found ChatInterface by brute force:', component);
+                    component.call('messageReceived', e);
+                    foundComponent = true;
+                } else if (component.name === 'chat.chat-messages') {
+                    console.log('🟢 Found ChatMessages by brute force:', component);
+                    component.call('messageReceived', e);
+                    foundComponent = true;
+                }
+            }
+        }
+
+        if (!foundComponent) {
+            console.error('🔴 No chat components found! Available components:');
+            const allComponents = window.Livewire.all();
+            Object.entries(allComponents).forEach(([id, comp]) => {
+                console.log(`  - ${id}: ${comp.name} (element: ${comp.el.tagName}${comp.el.id ? '#' + comp.el.id : ''})`);
+            });
+        } else {
+            // Scroll to bottom after message is processed
+            setTimeout(() => {
+                scrollToBottom();
+            }, 100);
+        }
 
     } catch (error) {
         console.error('🔴 Error handling incoming message:', error);
@@ -940,13 +1033,30 @@ function handleIncomingMessage(e) {
 // Handle user typing events
 function handleUserTyping(e) {
     try {
-        const chatComponent = window.Livewire.find(
-            document.querySelector('[wire\\:id*="chat"]')?.getAttribute('wire:id')
-        );
-
-        if (chatComponent) {
-            chatComponent.call('userTyping', e);
+        // Find ChatInterface component to handle typing events
+        const chatMainElement = document.getElementById('chatMain');
+        if (chatMainElement) {
+            const wireId = chatMainElement.getAttribute('wire:id');
+            if (wireId) {
+                const chatInterfaceComponent = window.Livewire.find(wireId);
+                if (chatInterfaceComponent) {
+                    console.log('🟢 Handling typing event via ChatInterface:', e);
+                    chatInterfaceComponent.call('userTyping', e);
+                    return;
+                }
+            }
         }
+
+        // Fallback: search for any chat component
+        const allComponents = window.Livewire.all();
+        for (const [id, component] of Object.entries(allComponents)) {
+            if (component.name === 'chat.chat-interface') {
+                component.call('userTyping', e);
+                return;
+            }
+        }
+
+        console.warn('🟡 No ChatInterface component found for typing event');
     } catch (error) {
         console.error('Error handling typing event:', error);
     }
