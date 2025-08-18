@@ -183,14 +183,61 @@ class ConversationSidebar extends Component
     }
 
     #[On('conversationUpdated')]
-    public function refreshConversations()
+    public function refreshConversations($conversationId = null)
     {
+        \Log::info('ConversationSidebar: Refreshing conversations', ['conversationId' => $conversationId]);
         $this->loadContactsAndConversations();
     }
 
-    #[On('conversationDeleted')]
-    public function handleConversationDeleted($conversationId)
+    #[On('refreshConversations')]
+    public function refreshConversationsEvent()
     {
+        \Log::info('ConversationSidebar: Event-triggered refresh conversations list');
+        $this->loadContactsAndConversations();
+
+        // Force component re-render
+        $this->skipRender = false;
+    }
+
+    public function refreshConversationsList()
+    {
+        \Log::info('ConversationSidebar: Manual refresh conversations list called');
+        $this->loadContactsAndConversations();
+
+        // Force component re-render - multiple approaches
+        $this->skipRender = false;
+
+        // Force Livewire to re-render by updating properties
+        $this->conversations = $this->conversations; // This forces reactivity
+        $this->contacts = $this->contacts;
+    }
+
+    public function handleMessageReceived($event)
+    {
+        \Log::info('ConversationSidebar: Message received', ['event' => $event]);
+
+        // Always refresh conversation list when a new message is received
+        $this->loadContactsAndConversations();
+
+        // If the message is not for the current active conversation, show notification
+        if (isset($event['message']) &&
+            $event['message']['conversation_id'] != $this->activeConversationId &&
+            $event['message']['user_id'] !== auth()->id()) {
+
+            $this->dispatch('showNotification', [
+                'title' => 'New Message from ' . ($event['message']['user']['first_name'] ?? 'Someone'),
+                'body' => $event['message']['content'] ?? 'New message',
+                'conversationId' => $event['message']['conversation_id']
+            ]);
+        }
+    }
+
+    #[On('conversationDeleted')]
+    public function handleConversationDeleted($data)
+    {
+        $conversationId = is_array($data) ? $data['id'] : $data;
+        \Log::info('ConversationSidebar: Conversation deleted', ['conversationId' => $conversationId]);
+
         if ($this->activeConversationId == $conversationId) {
             $this->activeConversationId = null;
         }
@@ -198,12 +245,32 @@ class ConversationSidebar extends Component
     }
 
     #[On('conversationArchived')]
-    public function handleConversationArchived($conversationId)
+    public function handleConversationArchived($data)
     {
+        $conversationId = is_array($data) ? $data['id'] : $data;
+        \Log::info('ConversationSidebar: Conversation archived', ['conversationId' => $conversationId]);
+
         if ($this->activeConversationId == $conversationId) {
             $this->activeConversationId = null;
         }
         $this->loadContactsAndConversations();
+    }
+
+    public function testRefresh()
+    {
+        \Log::info('ConversationSidebar: TEST REFRESH called');
+        $this->loadContactsAndConversations();
+        \Log::info('ConversationSidebar: TEST REFRESH loaded data', [
+            'conversations_count' => count($this->conversations),
+            'contacts_count' => count($this->contacts)
+        ]);
+
+        // Force multiple re-render approaches
+        $this->skipRender = false;
+        $this->conversations = $this->conversations;
+        $this->contacts = $this->contacts;
+
+        return count($this->conversations);
     }
 
     public function render()

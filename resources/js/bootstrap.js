@@ -136,8 +136,15 @@ window.Pusher = Pusher;
 
 // Initialize Echo with error handling
 try {
+    // Use Laravel Mix environment variables
     const pusherKey = process.env.MIX_PUSHER_APP_KEY;
     const pusherCluster = process.env.MIX_PUSHER_APP_CLUSTER;
+
+    console.log('🔵 Checking Pusher credentials:', {
+        key: pusherKey ? 'present' : 'missing',
+        cluster: pusherCluster ? 'present' : 'missing',
+        allEnvVars: Object.keys(process.env).filter(key => key.includes('PUSHER'))
+    });
 
     if (pusherKey && pusherCluster) {
         window.Echo = new Echo({
@@ -147,12 +154,11 @@ try {
             forceTLS: true
         });
         console.log('🟢 Echo initialized successfully with key:', pusherKey.substring(0, 8) + '...');
+        console.log('🟢 Using cluster:', pusherCluster);
     } else {
         console.warn('🟡 Pusher credentials not found - real-time messaging disabled');
-        console.warn('Available env vars:', {
-            key: pusherKey ? 'present' : 'missing',
-            cluster: pusherCluster ? 'present' : 'missing'
-        });
+        console.warn('🟡 Available env keys:', Object.keys(process.env));
+        console.warn('🟡 You need MIX_PUSHER_APP_KEY and MIX_PUSHER_APP_CLUSTER in your .env file');
         window.Echo = null;
     }
 } catch (error) {

@@ -27,7 +27,8 @@ class ChatInterface extends Component
     public $isSendingVoiceMessage = false;
 
     protected $listeners = [
-        'conversationSelected' => 'loadConversation'
+        'conversationSelected' => 'loadConversation',
+        'messageReceived' => 'messageReceived'
     ];
 
     public function mount($conversationId = null)
@@ -52,8 +53,8 @@ class ChatInterface extends Component
             // Add this line to update last_seen_at
             Auth::user()->updateLastSeen();
 
-            // Notify the chat messages component
-            $this->dispatch('conversationSelected', $this->conversation->id);
+            // Load messages for this conversation without triggering the conversation selection loop
+            $this->dispatch('loadMessagesForConversation', $this->conversation->id);
         }
     }
 
@@ -155,7 +156,7 @@ class ChatInterface extends Component
     {
         \Log::info('ChatInterface: Refresh messages called');
         if ($this->conversation) {
-            $this->dispatch('refreshChatMessages', ['id' => $this->conversation->id]);
+            $this->dispatch('refreshChatMessages', $this->conversation->id);
         }
         $this->dispatch('scroll-to-bottom');
     }
@@ -164,7 +165,7 @@ class ChatInterface extends Component
     {
         \Log::info('ChatInterface: Force refresh called');
         if ($this->conversation) {
-            $this->dispatch('refreshChatMessages', ['id' => $this->conversation->id]);
+            $this->dispatch('refreshChatMessages', $this->conversation->id);
             $this->dispatch('scroll-to-bottom');
             $this->dispatch('messageAdded');
         }
@@ -172,12 +173,21 @@ class ChatInterface extends Component
 
     public function sendMessage()
     {
+        \Log::info('SendMessage called', [
+            'messageText' => $this->messageText,
+            'selectedFiles' => count($this->selectedFiles ?? []),
+            'conversation' => $this->conversation ? $this->conversation->id : null
+        ]);
+
         if (empty(trim($this->messageText)) && empty($this->selectedFiles)) {
+            \Log::info('SendMessage: Empty message and no files');
+            $this->dispatch('error', 'Please enter a message or select files to send.');
             return;
         }
 
         if (!$this->conversation) {
-            session()->flash('error', 'Please select a conversation first.');
+            \Log::warning('SendMessage: No conversation selected');
+            $this->dispatch('error', 'Please select a conversation first.');
             return;
         }
 
@@ -207,10 +217,22 @@ class ChatInterface extends Component
             $this->reset(['messageText', 'selectedFiles', 'attachmentCaption', 'showAttachmentPreview']);
 
             // Refresh messages in the chat messages component
-            $this->dispatch('refreshChatMessages', ['id' => $this->conversation->id]);
+            $this->dispatch('refreshChatMessages', $this->conversation->id);
+
+            // Update sidebar without triggering loops
+            $this->dispatch('conversationUpdated', $this->conversation->id);
+
+            // Refresh sidebar conversation list
+            $this->dispatch('refreshConversations');
 
             // Broadcast to other users
+            \Log::info('ChatInterface: About to broadcast MessageSent event', [
+                'message_id' => $message->id,
+                'conversation_id' => $message->conversation_id,
+                'broadcasting_driver' => config('broadcasting.default')
+            ]);
             broadcast(new MessageSent($message))->toOthers();
+            \Log::info('ChatInterface: MessageSent broadcast completed');
 
             // Send email notifications
             $recipients = $this->conversation->participants()->where('user_id', '!=', Auth::id())->get();
@@ -238,10 +260,7 @@ class ChatInterface extends Component
 
 
 
-    public function updatedMessageText()
-    {
-        $this->startTyping();
-    }
+
 
     public function updatedSelectedFiles()
     {
@@ -274,44 +293,45 @@ class ChatInterface extends Component
     {
         \Log::info('ChatInterface: Message received', ['event' => $event, 'current_conversation' => $this->conversation?->id]);
 
-        // Always reload messages if we have a conversation loaded
-        if ($this->conversation) {
-            // Check if this message is for the current conversation
-            if (isset($event['message']['conversation_id']) &&
-                $event['message']['conversation_id'] == $this->conversation->id) {
-
-                // Dispatch notification for messages from other users
-                if ($event['message']['user_id'] !== Auth::id()) {
-                    $this->dispatch('showNotification', [
-                        'title' => 'New Message from ' . $event['message']['user']['first_name'],
-                        'body' => $event['message']['content'],
-                        'conversationId' => $event['message']['conversation_id']
-                    ]);
-                }
-
-                // Forward event to ChatMessages component specifically
-                $this->dispatch('messageReceived', $event);
-
-                // Also trigger refresh for immediate update
-                $this->dispatch('refreshChatMessages', ['id' => $this->conversation->id]);
-
-                // UI updates
-                $this->dispatch('scroll-to-bottom');
-                $this->dispatch('messageAdded');
-
-                // Update sidebar
-                $this->dispatch('conversationUpdated', ['id' => $this->conversation->id]);
-
-                \Log::info('ChatInterface: Message event forwarded to ChatMessages component');
-            } else {
-                \Log::info('ChatInterface: Message not for current conversation', [
-                    'message_conversation' => $event['message']['conversation_id'] ?? 'unknown',
-                    'current_conversation' => $this->conversation->id
-                ]);
-            }
-        } else {
+        // Only handle if we have a conversation loaded
+        if (!$this->conversation) {
             \Log::warning('ChatInterface: No conversation loaded when message received');
+            return;
         }
+
+        // Check if this message is for the current conversation
+        if (!isset($event['message']['conversation_id']) ||
+            $event['message']['conversation_id'] != $this->conversation->id) {
+            \Log::info('ChatInterface: Message not for current conversation', [
+                'message_conversation' => $event['message']['conversation_id'] ?? 'unknown',
+                'current_conversation' => $this->conversation->id
+            ]);
+            return;
+        }
+
+        // Dispatch notification for messages from other users
+        if ($event['message']['user_id'] !== Auth::id()) {
+            $this->dispatch('showNotification', [
+                'title' => 'New Message from ' . $event['message']['user']['first_name'],
+                'body' => $event['message']['content'],
+                'conversationId' => $event['message']['conversation_id']
+            ]);
+        }
+
+        // Forward event to ChatMessages component specifically
+        $this->dispatch('refreshChatMessages', $this->conversation->id);
+
+        // Also dispatch the messageReceived event for components listening to it
+        $this->dispatch('messageReceived', $event);
+
+        // UI updates
+        $this->dispatch('scroll-to-bottom');
+        $this->dispatch('messageAdded');
+
+        // Update sidebar conversation list
+        $this->dispatch('conversationUpdated', $this->conversation->id);
+
+        \Log::info('ChatInterface: Message event processed successfully');
     }
 
     public function userTyping($event)
@@ -410,7 +430,10 @@ class ChatInterface extends Component
             Auth::user()->updateLastSeen();
 
             // Refresh messages immediately
-            $this->dispatch('refreshChatMessages', ['id' => $this->conversation->id]);
+            $this->dispatch('refreshChatMessages', $this->conversation->id);
+
+            // Update sidebar
+            $this->dispatch('refreshConversations');
 
             // Broadcast to other users
             broadcast(new MessageSent($message))->toOthers();

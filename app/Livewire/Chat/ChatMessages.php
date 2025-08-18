@@ -17,7 +17,8 @@ class ChatMessages extends Component
         'conversationSelected' => 'loadConversation',
         'refreshChatMessages' => 'refreshMessages',
         'messageReceived' => 'messageReceived',
-        'forceRefresh' => 'forceRefresh'
+        'forceRefresh' => 'forceRefresh',
+        'loadMessagesForConversation' => 'loadConversationInternal'
     ];
 
     public function mount($conversationId = null)
@@ -34,6 +35,16 @@ class ChatMessages extends Component
         $this->loadMessages();
         $this->markMessagesAsRead();
         $this->dispatch('scroll-to-bottom');
+    }
+
+    public function loadConversationInternal($conversationId)
+    {
+        // Internal method for loading conversation without triggering events
+        // Used to prevent infinite loops when ChatInterface loads a conversation
+        $this->conversationId = $conversationId;
+        $this->loadMessages();
+        $this->markMessagesAsRead();
+        // Don't dispatch scroll-to-bottom here as ChatInterface already does it
     }
 
     public function loadMessages()
@@ -74,6 +85,14 @@ class ChatMessages extends Component
         }
 
         $this->loadMessages();
+        $this->markMessagesAsRead();
+
+        // Force component re-render - multiple approaches
+        $this->skipRender = false;
+
+        // Force Livewire to re-render by updating a property
+        $this->messages = $this->messages; // This forces reactivity
+
         $this->dispatch('scroll-to-bottom');
         $this->dispatch('messageAdded');
         \Log::info('ChatMessages: Messages refreshed', ['count' => count($this->messages)]);
@@ -83,27 +102,28 @@ class ChatMessages extends Component
     {
         \Log::info('ChatMessages: Force refresh called');
         $this->loadMessages();
+        $this->markMessagesAsRead();
         $this->dispatch('scroll-to-bottom');
         $this->dispatch('messageAdded');
     }
 
-    #[On('messageReceived')]
     public function messageReceived($event)
     {
         \Log::info('ChatMessages: Message received event', [
-            'event' => $event, 
+            'event' => $event,
             'current_conversation' => $this->conversationId
         ]);
 
         // Check if this message is for our conversation
-        if (isset($event['message']['conversation_id']) && 
+        if (isset($event['message']['conversation_id']) &&
             $event['message']['conversation_id'] == $this->conversationId) {
-            
+
             $this->loadMessages();
             $this->markMessagesAsRead();
-            $this->dispatch('scroll-to-bottom');
-            $this->dispatch('messageAdded');
-            
+
+            // Force component re-render
+            $this->skipRender = false;
+
             \Log::info('ChatMessages: Messages reloaded for conversation', [
                 'conversationId' => $this->conversationId,
                 'message_count' => count($this->messages)
@@ -158,6 +178,19 @@ class ChatMessages extends Component
                     'read_at' => now(),
                 ]);
             });
+    }
+
+    public function testRefresh()
+    {
+        \Log::info('ChatMessages: TEST REFRESH called', ['conversationId' => $this->conversationId]);
+        $this->loadMessages();
+        \Log::info('ChatMessages: TEST REFRESH loaded messages', ['count' => count($this->messages), 'messages' => $this->messages]);
+
+        // Force multiple re-render approaches
+        $this->skipRender = false;
+        $this->messages = $this->messages;
+
+        return count($this->messages);
     }
 
     public function render()

@@ -105,6 +105,11 @@ function initializeLivewireEvents() {
         updateScrollButton();
     });
 
+    // Listen for notifications
+    Livewire.on('showNotification', (data) => {
+        showNotificationToast(data);
+    });
+
     // Listen for conversation loaded
     Livewire.on('conversationLoaded', (conversationId) => {
         // Extract the ID if it's passed as an array or object
@@ -132,6 +137,41 @@ function initializeLivewireEvents() {
             console.warn('🟡 No valid conversation ID provided for real-time setup:', conversationId);
         }
     });
+
+    // Listen for incoming message events and handle them properly
+    Livewire.on('messageReceived', (event) => {
+        console.log('🟢 Livewire messageReceived event triggered:', event);
+        // This will be handled by the individual components that are listening
+    });
+
+    // Debug: Listen for all Livewire events
+    if (window.Livewire && window.Livewire.hook) {
+        window.Livewire.hook('message.sent', (message, component) => {
+            if (message.payload.method === 'messageReceived' ||
+                message.payload.method === 'refreshChatMessages' ||
+                message.payload.method === 'refreshConversations') {
+                console.log('🔧 Debug - Livewire message sent:', {
+                    method: message.payload.method,
+                    component: component.name,
+                    payload: message.payload
+                });
+            }
+        });
+
+        window.Livewire.hook('message.received', (message, component) => {
+            if (message.response && (
+                message.response.effects?.dispatched?.some(e => ['messageReceived', 'refreshChatMessages', 'refreshConversations'].includes(e.event)) ||
+                message.payload.method === 'messageReceived' ||
+                message.payload.method === 'refreshChatMessages' ||
+                message.payload.method === 'refreshConversations')) {
+                console.log('🔧 Debug - Livewire message received:', {
+                    method: message.payload?.method,
+                    component: component.name,
+                    response: message.response
+                });
+            }
+        });
+    }
 }
 
 function scrollToBottom(force = false) {
@@ -310,11 +350,51 @@ function showInfoToast(message) {
         timer: 3000,
         timerProgressBar: true
     });
-    
+
     Toast.fire({
         icon: 'info',
         title: message
     });
+}
+
+function showNotificationToast(data) {
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: true,
+        confirmButtonText: 'View',
+        timer: 5000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
+    Toast.fire({
+        icon: 'info',
+        title: data.title || 'New Message',
+        text: data.body || '',
+        showCloseButton: true
+    }).then((result) => {
+        if (result.isConfirmed && data.conversationId) {
+            // Navigate to the conversation
+            const sidebarComponent = findSidebarComponent();
+            if (sidebarComponent) {
+                sidebarComponent.call('selectConversation', data.conversationId);
+            }
+        }
+    });
+}
+
+function findSidebarComponent() {
+    // Find the sidebar component
+    const sidebarElement = document.querySelector('.chat-sidebar [wire\\:id]');
+    if (sidebarElement) {
+        const wireId = sidebarElement.getAttribute('wire:id');
+        return window.Livewire.find(wireId);
+    }
+    return null;
 }
 
 // Menu toggle functions
@@ -476,10 +556,17 @@ function setupChatPresence(conversationId) {
         }
 
         // Listen for new messages
+        console.log('🔵 Setting up Echo listener for conversation:', conversationId);
+        console.log('🔵 Echo object:', window.Echo);
+
         const messageChannel = window.Echo.private(`conversation.${conversationId}`)
             .listen('MessageSent', (e) => {
                 console.log('🟢 New message received via Echo:', e);
-                handleIncomingMessage(e);
+                console.log('🟢 About to call handleIncomingMessage');
+                // Use a slight delay to ensure DOM is ready
+                setTimeout(() => {
+                    handleIncomingMessage(e);
+                }, 50);
             })
             .listen('UserTyping', (e) => {
                 console.log('🟢 User typing event:', e);
@@ -526,7 +613,9 @@ function setupChatPresence(conversationId) {
         currentConversationId = null;
     }
 }
-
+setTimeout(() => {
+    handleIncomingMessage(e);
+}, 50);
 // Add this helper function to chat.js
 function updateUserStatus(userId, isOnline) {
     const statusElement = document.getElementById(`user-status-${userId}`);
@@ -828,7 +917,7 @@ function toggleVoiceMessage(button) {
         // Create new audio element and store it
         audio = document.createElement('audio');
         audio.src = audioSrc;
-        audio.preload = 'metadata';
+        audio.preload = 'auto'; // Changed from 'metadata' to 'auto' for better loading
         audio.style.display = 'none';
 
         // Store reference to prevent garbage collection
@@ -868,9 +957,39 @@ function toggleVoiceMessage(button) {
             }
         });
 
+        audio.addEventListener('canplaythrough', function() {
+            console.log('Audio can play through:', audioSrc);
+            // Audio is fully loaded and can play
+        });
+
+        audio.addEventListener('loadstart', function() {
+            console.log('Audio loading started:', audioSrc);
+        });
+
         audio.addEventListener('error', function(e) {
-            console.error('Audio error:', e);
-            showErrorToast('Error playing voice message');
+            console.error('Audio error:', e, 'Error code:', audio.error ? audio.error.code : 'unknown');
+            let errorMessage = 'Error playing voice message';
+
+            if (audio.error) {
+                switch (audio.error.code) {
+                    case audio.error.MEDIA_ERR_ABORTED:
+                        errorMessage = 'Audio playback was aborted';
+                        break;
+                    case audio.error.MEDIA_ERR_NETWORK:
+                        errorMessage = 'Network error while loading audio';
+                        break;
+                    case audio.error.MEDIA_ERR_DECODE:
+                        errorMessage = 'Audio format not supported';
+                        break;
+                    case audio.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                        errorMessage = 'Audio source not supported';
+                        break;
+                    default:
+                        errorMessage = 'Unknown audio error';
+                }
+            }
+
+            showErrorToast(errorMessage);
             playIcon.className = 'fas fa-play';
             activeAudioElements.delete(audioSrc);
             if (audio.parentNode) {
@@ -895,14 +1014,54 @@ function toggleVoiceMessage(button) {
             }
         });
 
-        // Play the audio
-        audio.play().then(() => {
-            playIcon.className = 'fas fa-pause';
-        }).catch(error => {
-            console.error('Error playing audio:', error);
-            showErrorToast('Could not play voice message');
-            playIcon.className = 'fas fa-play';
-        });
+        // Show loading state
+        playIcon.className = 'fas fa-spinner fa-spin';
+
+        // Check if audio is ready to play
+        console.log('Audio ready state:', audio.readyState, 'HAVE_ENOUGH_DATA:', audio.HAVE_ENOUGH_DATA);
+        if (audio.readyState >= audio.HAVE_ENOUGH_DATA) {
+            // Audio is ready, play immediately
+            console.log('Audio ready, playing immediately');
+            audio.play().then(() => {
+                console.log('Audio play successful');
+                playIcon.className = 'fas fa-pause';
+            }).catch(error => {
+                console.error('Error playing audio immediately:', error);
+                showErrorToast('Could not play voice message');
+                playIcon.className = 'fas fa-play';
+            });
+        } else {
+            // Audio is not ready, wait for it to load
+            console.log('Audio not ready, waiting for canplay event. Current state:', audio.readyState);
+            const onCanPlay = () => {
+                console.log('Audio canplay event fired');
+                audio.removeEventListener('canplay', onCanPlay);
+                audio.removeEventListener('error', onError);
+
+                audio.play().then(() => {
+                    console.log('Audio play successful after loading');
+                    playIcon.className = 'fas fa-pause';
+                }).catch(error => {
+                    console.error('Error playing audio after loading:', error);
+                    showErrorToast('Could not play voice message');
+                    playIcon.className = 'fas fa-play';
+                });
+            };
+
+            const onError = () => {
+                audio.removeEventListener('canplay', onCanPlay);
+                audio.removeEventListener('error', onError);
+                console.error('Error loading audio for playback');
+                showErrorToast('Could not load voice message');
+                playIcon.className = 'fas fa-play';
+            };
+
+            audio.addEventListener('canplay', onCanPlay);
+            audio.addEventListener('error', onError);
+
+            // Trigger loading if not already started
+            audio.load();
+        }
     } else {
         audio.pause();
         playIcon.className = 'fas fa-play';
@@ -961,67 +1120,51 @@ const activeAudioElements = new Map();
 
 // Handle incoming messages from Pusher
 function handleIncomingMessage(e) {
-    console.log('🟢 Handling incoming message:', e);
+    console.log('🟢 handleIncomingMessage called with:', e);
+    console.log('🟢 Livewire object:', window.Livewire);
 
     try {
-        let foundComponent = false;
-
-        // Method 1: Find ChatInterface component and let it handle message forwarding
-        const chatMainElement = document.getElementById('chatMain');
-        if (chatMainElement) {
-            const wireId = chatMainElement.getAttribute('wire:id');
-            if (wireId) {
-                const chatInterfaceComponent = window.Livewire.find(wireId);
-                if (chatInterfaceComponent) {
-                    console.log('🟢 Found ChatInterface component, calling messageReceived:', chatInterfaceComponent);
-                    chatInterfaceComponent.call('messageReceived', e);
-                    foundComponent = true;
-                }
-            }
+        // First, dispatch the messageReceived event to all Livewire components
+        console.log('🟢 About to dispatch messageReceived event to Livewire components');
+        if (window.Livewire && window.Livewire.dispatch) {
+            window.Livewire.dispatch('messageReceived', e);
+            console.log('🟢 Successfully dispatched messageReceived event');
+        } else {
+            console.error('🔴 Livewire.dispatch not available');
         }
 
-        // Method 2: Find ChatMessages component directly
-        const chatMessagesElements = document.querySelectorAll('[wire\\:id*="chat-messages"]');
-        chatMessagesElements.forEach(element => {
-            const wireId = element.getAttribute('wire:id');
-            if (wireId) {
-                const chatMessagesComponent = window.Livewire.find(wireId);
-                if (chatMessagesComponent) {
-                    console.log('🟢 Found ChatMessages component, calling messageReceived:', chatMessagesComponent);
-                    chatMessagesComponent.call('messageReceived', e);
-                    foundComponent = true;
-                }
+        // Also dispatch to individual components by name as backup
+        const allComponents = window.Livewire.all();
+        let updatedComponents = 0;
+
+        Object.entries(allComponents).forEach(([id, component]) => {
+            if (component.name === 'chat.chat-interface') {
+                console.log('🟢 Calling messageReceived on ChatInterface component');
+                component.call('messageReceived', e);
+                updatedComponents++;
+            } else if (component.name === 'chat.chat-messages') {
+                console.log('🟢 Calling messageReceived on ChatMessages component');
+                component.call('messageReceived', e);
+                updatedComponents++;
             }
         });
 
-        // Method 3: Brute force search through all components if nothing found
-        if (!foundComponent) {
-            console.log('🟡 Searching all Livewire components...');
-            const allComponents = window.Livewire.all();
-            for (const [id, component] of Object.entries(allComponents)) {
-                if (component.name === 'chat.chat-interface') {
-                    console.log('🟢 Found ChatInterface by brute force:', component);
-                    component.call('messageReceived', e);
-                    foundComponent = true;
-                } else if (component.name === 'chat.chat-messages') {
-                    console.log('🟢 Found ChatMessages by brute force:', component);
-                    component.call('messageReceived', e);
-                    foundComponent = true;
-                }
-            }
-        }
+        console.log(`🟢 Updated ${updatedComponents} components via messageReceived`);
 
-        if (!foundComponent) {
-            console.error('🔴 No chat components found! Available components:');
-            const allComponents = window.Livewire.all();
-            Object.entries(allComponents).forEach(([id, comp]) => {
-                console.log(`  - ${id}: ${comp.name} (element: ${comp.el.tagName}${comp.el.id ? '#' + comp.el.id : ''})`);
-            });
-        } else {
-            // Scroll to bottom after message is processed
+        // Scroll to bottom and show notification for messages from others
+        if (e.message && e.message.user_id !== (window.currentUserId || null)) {
             setTimeout(() => {
                 scrollToBottom();
-            }, 100);
+            }, 200);
+
+            // Show notification if not on current conversation
+            if (e.message.conversation_id != currentConversationId) {
+                showNotificationToast({
+                    title: `New Message from ${e.message.user?.first_name || 'Someone'}`,
+                    body: e.message.content || 'New message',
+                    conversationId: e.message.conversation_id
+                });
+            }
         }
 
     } catch (error) {
@@ -1068,3 +1211,64 @@ window.startVoiceRecording = startVoiceRecording;
 window.stopVoiceRecording = stopVoiceRecording;
 window.cancelVoiceRecording = cancelVoiceRecording;
 window.toggleVoiceMessage = toggleVoiceMessage;
+
+// Debug function to test message reception
+window.testMessageReception = function() {
+    console.log('🔧 Testing message reception...');
+
+    // Direct approach: Use debug methods that return data
+    let promises = [];
+
+    // Test ChatMessages
+    const chatMessagesElement = document.querySelector('[data-component="chat-messages"]');
+    if (chatMessagesElement) {
+        const wireId = chatMessagesElement.getAttribute('wire:id');
+        if (wireId) {
+            const component = window.Livewire.find(wireId);
+            if (component) {
+                console.log('🔧 Test: Testing ChatMessages with testRefresh');
+                const promise = component.call('testRefresh').then(result => {
+                    console.log('🔧 ChatMessages testRefresh result:', result);
+                }).catch(error => {
+                    console.error('🔧 ChatMessages testRefresh error:', error);
+                });
+                promises.push(promise);
+            }
+        }
+    }
+
+    // Test ConversationSidebar
+    const sidebarElement = document.querySelector('[data-component="conversation-sidebar"]');
+    if (sidebarElement) {
+        const wireId = sidebarElement.getAttribute('wire:id');
+        if (wireId) {
+            const component = window.Livewire.find(wireId);
+            if (component) {
+                console.log('🔧 Test: Testing ConversationSidebar with testRefresh');
+                const promise = component.call('testRefresh').then(result => {
+                    console.log('🔧 ConversationSidebar testRefresh result:', result);
+                }).catch(error => {
+                    console.error('🔧 ConversationSidebar testRefresh error:', error);
+                });
+                promises.push(promise);
+            }
+        }
+    }
+
+    // Wait for all promises and show final result
+    Promise.all(promises).then(() => {
+        console.log('🔧 Test: All components tested. Check Laravel logs for detailed info.');
+    }).catch(error => {
+        console.error('🔧 Test: Error during testing:', error);
+    });
+
+    if (promises.length === 0) {
+        console.error('🔧 Test: No components found!');
+        // Show available components
+        const allComponents = window.Livewire.all();
+        console.log('Available Livewire components:');
+        Object.entries(allComponents).forEach(([id, comp]) => {
+            console.log(`  - ${id}: ${comp.name} (element: ${comp.el.tagName}${comp.el.id ? '#' + comp.el.id : ''})`);
+        });
+    }
+};

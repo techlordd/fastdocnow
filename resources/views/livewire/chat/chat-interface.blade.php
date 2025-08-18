@@ -71,6 +71,11 @@
                 <i class="fas fa-refresh"></i>
             </button>
 
+            <!-- Debug Test Message Reception Button (remove in production) -->
+            <button class="btn btn-sm btn-outline-info" onclick="testMessageReception()" title="Test Message Reception">
+                <i class="fas fa-bug"></i>
+            </button>
+
             <!-- Options Menu -->
             <div class="dropdown">
                 <button class="btn btn-light btn-sm px-3" type="button" id="chatOptionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -249,14 +254,17 @@
             <textarea class="chat-input"
                 placeholder="Type a message..."
                 rows="1"
-                wire:model.live="messageText"
+                wire:model.blur="messageText"
                 wire:keydown.enter="sendMessage"
                 wire:keydown.shift.enter.prevent=""
                 wire:input="startTyping"
                 wire:blur="stopTyping"
                 id="chat-message-input"></textarea>
 
-            <button type="submit" class="send-btn" wire:loading.attr="disabled">
+            <button type="submit" class="send-btn"
+                    wire:loading.attr="disabled"
+                    wire:loading.class="opacity-50"
+                    onclick="console.log('Send button clicked')">
                 <span wire:loading.remove wire:target="sendMessage">
                     <i class="fas fa-paper-plane"></i>
                 </span>
@@ -267,6 +275,10 @@
         </form>
     </div>
     @endif
+    <script>
+        // Set current user ID for JavaScript
+        window.currentUserId = {{ auth()->id() }};
+    </script>
     <style>
         .online-status {
             display: flex;

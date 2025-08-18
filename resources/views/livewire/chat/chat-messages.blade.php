@@ -1,4 +1,4 @@
-<div class="chat-messages-container" wire:id="chat-messages-{{ $conversationId }}">
+<div class="chat-messages-container" wire:id="{{ $this->getId() }}" data-component="chat-messages" data-conversation="{{ $conversationId }}">
     <!-- Messages Area -->
     <div class="chat-messages custom-scrollbar position-relative" id="chatMessages{{ $conversationId }}">
         @forelse($messages as $message)
@@ -403,4 +403,3 @@
         }
     </style>
 </div>
-
