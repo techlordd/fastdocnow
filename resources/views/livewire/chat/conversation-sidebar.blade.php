@@ -115,7 +115,7 @@
     </div>
     @endif
     <!-- Active Conversations Section -->
-    <div>
+    <div wire:poll.5s="loadContactsAndConversations">
         @if(!empty($conversations) || !empty($conversationSearchTerm))
         <div class="px-3 pt-3 pb-2">
             <div class="d-flex align-items-center justify-content-between mb-3">
@@ -142,7 +142,7 @@
             </div>
         </div>
         @if(count($conversations) > 0)
-        <div class="flex-fill overflow-auto custom-scrollbar" style="max-height: calc(100vh - 310px);">
+        <div class="flex-fill overflow-auto custom-scrollbar" style="max-height: calc(100vh - 310px);" >
             @foreach($conversations as $conversation)
             <a href="javascript:void(0)"
                 wire:click="selectConversation({{ $conversation['id'] }})"

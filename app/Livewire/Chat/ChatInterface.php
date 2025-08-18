@@ -204,6 +204,18 @@ class ChatInterface extends Component
                 'attachments' => $attachments,
             ]);
 
+            // Send email notifications
+            $recipients = $this->conversation->participants()->where('user_id', '!=', Auth::id())->get();
+            foreach ($recipients as $recipient) {
+                if ($recipient->email_notifications) {
+                    try {
+                        \Illuminate\Support\Facades\Mail::to($recipient->notification_email ?? $recipient->email)->send(new \App\Mail\NewMessageEmail($message, Auth::user()));
+                    } catch (\Exception $e) {
+                        // Fail silently
+                    }
+                }
+            }
+
             // Load relationships for broadcasting
             $message->load('user');
 
@@ -225,26 +237,7 @@ class ChatInterface extends Component
             // Refresh sidebar conversation list
             $this->dispatch('refreshConversations');
 
-            // Broadcast to other users
-            \Log::info('ChatInterface: About to broadcast MessageSent event', [
-                'message_id' => $message->id,
-                'conversation_id' => $message->conversation_id,
-                'broadcasting_driver' => config('broadcasting.default')
-            ]);
-            broadcast(new MessageSent($message))->toOthers();
-            \Log::info('ChatInterface: MessageSent broadcast completed');
-
-            // Send email notifications
-            $recipients = $this->conversation->participants()->where('user_id', '!=', Auth::id())->get();
-            foreach ($recipients as $recipient) {
-                if ($recipient->email_notifications) {
-                    try {
-                        \Illuminate\Support\Facades\Mail::to($recipient->notification_email ?? $recipient->email)->send(new \App\Mail\NewMessageEmail($message, Auth::user()));
-                    } catch (\Exception $e) {
-                        // Fail silently
-                    }
-                }
-            }
+            
 
             // Dispatch events
             $this->dispatch('messageAdded');

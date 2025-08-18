@@ -54,7 +54,7 @@
             </h4>
             <p class="status">
                 <span class="online-status" id="user-status-{{ $otherUser['id'] }}">
-                    <i class="fas fa-circle"></i>
+                    <i class="fas fa-circle me-1"></i>
                     @if($otherUser['is_online'])
                     Online
                     @else
@@ -71,10 +71,10 @@
                 <i class="fas fa-refresh"></i>
             </button>
 
-            <!-- Debug Test Message Reception Button (remove in production) -->
-            <button class="btn btn-sm btn-outline-info" onclick="testMessageReception()" title="Test Message Reception">
-                <i class="fas fa-bug"></i>
-            </button>
+                <!-- Debug Test Message Reception Button (remove in production)
+                <button class="btn btn-sm btn-outline-info" onclick="testMessageReception()" title="Test Message Reception">
+                    <i class="fas fa-bug"></i>
+                </button> -->
 
             <!-- Options Menu -->
             <div class="dropdown">
