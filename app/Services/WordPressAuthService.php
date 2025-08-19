@@ -101,13 +101,43 @@ class WordPressAuthService
      */
     protected function getOrCreateLaravelUser(WordPressUser $wpUser)
     {
-        if (!config('wordpress.sync.auto_create_laravel_users', true)) {
-            // Only return existing linked users if auto-creation is disabled
-            return User::where('wp_user_id', $wpUser->ID)->first();
-        }
+        try {
+            // First check if we already have a linked Laravel user
+            $existingUser = User::where('wp_user_id', $wpUser->ID)->first();
+            if ($existingUser) {
+                // Sync data if configured to do so
+                if (config('wordpress.sync.sync_on_login', true)) {
+                    $this->syncWordPressData($existingUser, $wpUser);
+                }
+                return $existingUser;
+            }
 
-        // Use the enhanced toLaravelUser method from Corcel model
-        return $wpUser->toLaravelUser();
+            // Check if auto-creation is disabled
+            if (!config('wordpress.sync.auto_create_laravel_users', true)) {
+                return null;
+            }
+
+            // Check if user exists by email (without wp_user_id link)
+            $existingUserByEmail = User::where('email', $wpUser->user_email)->first();
+            if ($existingUserByEmail) {
+                // Link existing user to WordPress user
+                $existingUserByEmail->update(['wp_user_id' => $wpUser->ID]);
+                if (config('wordpress.sync.sync_on_login', true)) {
+                    $this->syncWordPressData($existingUserByEmail, $wpUser);
+                }
+                return $existingUserByEmail;
+            }
+
+            // Use the enhanced toLaravelUser method from Corcel model
+            return $wpUser->toLaravelUser();
+        } catch (\Exception $e) {
+            Log::error('Failed to get or create Laravel user for WordPress user', [
+                'wp_user_id' => $wpUser->ID,
+                'wp_email' => $wpUser->user_email,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
     }
 
     /**
@@ -119,13 +149,47 @@ class WordPressAuthService
             return;
         }
 
-        $laravelUser->update([
-            'first_name' => $wpUser->first_name ?: $laravelUser->first_name,
-            'last_name' => $wpUser->last_name ?: $laravelUser->last_name,
-            'is_admin' => $wpUser->is_admin,
-            'avatar' => $wpUser->avatar_url ?: $laravelUser->avatar,
-            'bio' => $wpUser->getMeta('description') ?: $laravelUser->bio,
-        ]);
+        try {
+            $updateData = [
+                'first_name' => $wpUser->first_name ?: $laravelUser->first_name,
+                'last_name' => $wpUser->last_name ?: $laravelUser->last_name,
+                'is_admin' => $wpUser->is_admin,
+            ];
+
+            // Only update avatar if WordPress has one and sync is enabled
+            if (config('wordpress.sync.sync_avatars', true)) {
+                $wpAvatar = $wpUser->avatar_url;
+                if ($wpAvatar) {
+                    $updateData['avatar'] = $wpAvatar;
+                }
+            }
+
+            // Sync bio/description
+            $wpBio = $wpUser->getMeta('description');
+            if ($wpBio) {
+                $updateData['bio'] = $wpBio;
+            }
+
+            // Sync phone if available
+            $wpPhone = $wpUser->getMeta('phone');
+            if ($wpPhone) {
+                $updateData['phone'] = $wpPhone;
+            }
+
+            $laravelUser->update($updateData);
+
+            Log::info('WordPress user data synced successfully', [
+                'user_id' => $laravelUser->id,
+                'wp_user_id' => $wpUser->ID,
+                'synced_fields' => array_keys($updateData)
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to sync WordPress user data', [
+                'user_id' => $laravelUser->id,
+                'wp_user_id' => $wpUser->ID,
+                'error' => $e->getMessage()
+            ]);
+        }
     }
 
     /**

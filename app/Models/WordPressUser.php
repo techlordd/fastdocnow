@@ -80,8 +80,23 @@ class WordPressUser extends CorcelUser
     // Enhanced meta access using Corcel's built-in functionality
     public function getMeta($key, $default = null)
     {
-        // Use Corcel's built-in meta functionality
-        return parent::getMeta($key, $default);
+        try {
+            // Use Corcel's built-in meta functionality
+            $value = parent::getMeta($key, $default);
+
+            // Handle WordPress serialized data
+            if (is_string($value) && is_serialized($value)) {
+                return maybe_unserialize($value);
+            }
+
+            return $value;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("WordPress meta retrieval failed for key: {$key}", [
+                'error' => $e->getMessage(),
+                'user_id' => $this->ID ?? 'unknown'
+            ]);
+            return $default;
+        }
     }
 
     // Get avatar URL from WordPress using Corcel and various avatar plugins
@@ -133,28 +148,37 @@ class WordPressUser extends CorcelUser
     // Enhanced capability checking using WordPress prefix and Corcel functionality
     public function hasCapability($capability)
     {
-        $prefix = config('corcel.prefix', 'wp_');
-        $capabilities = $this->getMeta($prefix . 'capabilities');
+        try {
+            $prefix = config('corcel.prefix', 'wp_');
+            $capabilities = $this->getMeta($prefix . 'capabilities');
 
-        if ($capabilities) {
-            // Corcel automatically handles unserialization
-            if (is_array($capabilities)) {
-                return array_key_exists($capability, $capabilities);
+            if ($capabilities) {
+                // Corcel automatically handles unserialization
+                if (is_array($capabilities)) {
+                    return array_key_exists($capability, $capabilities);
+                }
+                // Fallback for string format
+                if (is_string($capabilities)) {
+                    $caps = maybe_unserialize($capabilities);
+                    return is_array($caps) && array_key_exists($capability, $caps);
+                }
             }
-            // Fallback for string format
-            if (is_string($capabilities)) {
-                $caps = maybe_unserialize($capabilities);
-                return is_array($caps) && array_key_exists($capability, $caps);
+
+            // Also check user level for backward compatibility
+            $userLevel = $this->getMeta($prefix . 'user_level');
+            if ($userLevel && $capability === 'administrator' && $userLevel >= 10) {
+                return true;
             }
-        }
 
-        // Also check user level for backward compatibility
-        $userLevel = $this->getMeta($prefix . 'user_level');
-        if ($userLevel && $capability === 'administrator' && $userLevel >= 10) {
-            return true;
+            return false;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("WordPress capability check failed", [
+                'capability' => $capability,
+                'user_id' => $this->ID ?? 'unknown',
+                'error' => $e->getMessage()
+            ]);
+            return false;
         }
-
-        return false;
     }
 
     // Get all user capabilities
@@ -201,19 +225,34 @@ class WordPressUser extends CorcelUser
     // Enhanced conversion to Laravel user with better data mapping
     public function toLaravelUser()
     {
-        // Generate unique username if needed
-        $username = $this->user_login;
-        $originalUsername = $username;
-        $counter = 1;
+        try {
+            // Validate required fields
+            if (empty($this->user_email) || empty($this->user_login)) {
+                throw new \Exception("WordPress user missing required fields: email or login");
+            }
 
-        while (User::where('username', $username)->where('wp_user_id', '!=', $this->ID)->exists()) {
-            $username = $originalUsername . $counter;
-            $counter++;
-        }
+            // Generate unique username if needed
+            $username = sanitize_user($this->user_login, true);
+            if (empty($username)) {
+                $username = 'wp_user_' . $this->ID;
+            }
 
-        return User::updateOrCreate(
-            ['wp_user_id' => $this->ID],
-            [
+            $originalUsername = $username;
+            $counter = 1;
+
+            while (User::where('username', $username)->where('wp_user_id', '!=', $this->ID)->exists()) {
+                $username = $originalUsername . $counter;
+                $counter++;
+
+                // Prevent infinite loop
+                if ($counter > 100) {
+                    $username = 'wp_user_' . $this->ID . '_' . time();
+                    break;
+                }
+            }
+
+            // Prepare user data
+            $userData = [
                 'first_name' => $this->first_name ?: 'User',
                 'last_name' => $this->last_name ?: '',
                 'username' => $username,
@@ -224,8 +263,32 @@ class WordPressUser extends CorcelUser
                 'avatar' => $this->avatar_url,
                 'bio' => $this->getMeta('description') ?: '',
                 'phone' => $this->getMeta('phone') ?: '',
-            ]
-        );
+            ];
+
+            // Create or update the Laravel user
+            $user = User::updateOrCreate(
+                ['wp_user_id' => $this->ID],
+                $userData
+            );
+
+            \Illuminate\Support\Facades\Log::info('Laravel user created/updated from WordPress user', [
+                'laravel_user_id' => $user->id,
+                'wp_user_id' => $this->ID,
+                'email' => $this->user_email,
+                'username' => $username
+            ]);
+
+            return $user;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to convert WordPress user to Laravel user', [
+                'wp_user_id' => $this->ID ?? 'unknown',
+                'wp_email' => $this->user_email ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            throw $e;
+        }
     }
 
     // Get WordPress posts for this user
@@ -249,16 +312,39 @@ class WordPressUser extends CorcelUser
     // Check if user can access the chat system
     public function canAccessChat()
     {
-        $allowedCapabilities = config('wordpress.capabilities.allowed_capabilities', [
-            'administrator', 'editor', 'author', 'contributor', 'subscriber'
-        ]);
+        try {
+            // Check if user is active (user_status = 0 in WordPress)
+            if (isset($this->user_status) && $this->user_status != 0) {
+                return false;
+            }
 
-        foreach ($allowedCapabilities as $capability) {
-            if ($this->hasCapability($capability)) {
+            $allowedCapabilities = config('wordpress.capabilities.allowed_capabilities', [
+                'administrator', 'editor', 'author', 'contributor', 'subscriber'
+            ]);
+
+            // Check each allowed capability
+            foreach ($allowedCapabilities as $capability) {
+                if ($this->hasCapability($capability)) {
+                    return true;
+                }
+            }
+
+            // Fallback: check if user has any capabilities at all
+            $userCapabilities = $this->getCapabilities();
+            if (!empty($userCapabilities)) {
+                // If user has any WordPress capabilities, they can probably access chat
                 return true;
             }
-        }
 
-        return false;
+            return false;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning("WordPress canAccessChat check failed", [
+                'user_id' => $this->ID ?? 'unknown',
+                'error' => $e->getMessage()
+            ]);
+
+            // Default to false for security
+            return false;
+        }
     }
 }

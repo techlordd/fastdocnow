@@ -79,7 +79,7 @@
 
                         @if($isVoiceMessage)
                         <!-- Voice Message Player -->
-                        <div class="voice-message-player" data-audio-src="storage/{{ $attachment['path'] }}">
+                        <div class="voice-message-player" data-audio-src="public/storage/{{ $attachment['path'] }}">
                             <button class="voice-play-btn" onclick="toggleVoiceMessage(this)" title="Play voice message">
                                 <i class="fas fa-play"></i>
                             </button>

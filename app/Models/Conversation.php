@@ -157,11 +157,11 @@ class Conversation extends Model
     public function getAvatarUrl(User $user)
     {
         if ($this->avatar) {
-            return asset('storage/' . $this->avatar);
+            return asset('public/storage/' . $this->avatar);
         }
 
         if ($this->contact && $this->contact->avatar) {
-            return asset('storage/' . $this->contact->avatar);
+            return asset('public/storage/' . $this->contact->avatar);
         }
 
         $otherParticipant = $this->participants()

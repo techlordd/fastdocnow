@@ -64,25 +64,9 @@ window.axios.interceptors.response.use(
     }
 );
 
-// Service Worker registration
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', function() {
-        navigator.serviceWorker.register('/sw.js')
-            .then(function(registration) {
-                console.log('SW registered: ', registration);
-            })
-            .catch(function(registrationError) {
-                console.log('SW registration failed: ', registrationError);
-            });
-    });
-}
+// Service Worker registration removed to improve performance
 
-// Notification permission
-if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission().then(function(result) {
-        console.log('Notification permission:', result);
-    });
-}
+// Browser notifications handled through Pusher instead of service worker
 
 // Online/Offline status
 window.addEventListener('online', function() {

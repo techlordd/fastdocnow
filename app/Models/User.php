@@ -41,6 +41,7 @@ class User extends Authenticatable
         'is_admin',
         'status',
         'status_message',
+        'wp_user_id',
     ];
 
     protected $hidden = [
@@ -82,7 +83,7 @@ class User extends Authenticatable
     public function getAvatarUrlAttribute()
     {
         if ($this->avatar) {
-            return asset('storage/' . $this->avatar);
+            return asset('public/storage/' . $this->avatar);
         }
 
         return "https://ui-avatars.com/api/?name=" . urlencode($this->name) . "&size=200&background=random";
@@ -142,6 +143,11 @@ class User extends Authenticatable
     public function devices()
     {
         return $this->hasMany(UserDevice::class);
+    }
+
+    public function wordpressUser()
+    {
+        return $this->belongsTo(\App\Models\WordPressUser::class, 'wp_user_id', 'ID');
     }
 
     // Helper Methods
@@ -207,5 +213,47 @@ class User extends Authenticatable
               ->orWhere('username', 'like', "%{$term}%")
               ->orWhere('email', 'like', "%{$term}%");
         });
+    }
+
+    // WordPress Integration Helper Methods
+    public function isWordPressUser()
+    {
+        return !is_null($this->wp_user_id);
+    }
+
+    public function getWordPressCapabilities()
+    {
+        if ($this->isWordPressUser() && $this->wordpressUser) {
+            return $this->wordpressUser->getCapabilities();
+        }
+        return [];
+    }
+
+    public function hasWordPressCapability($capability)
+    {
+        if ($this->isWordPressUser() && $this->wordpressUser) {
+            return $this->wordpressUser->hasCapability($capability);
+        }
+        return false;
+    }
+
+    public function syncFromWordPress()
+    {
+        if ($this->isWordPressUser() && $this->wordpressUser) {
+            $wpUser = $this->wordpressUser;
+
+            $this->update([
+                'first_name' => $wpUser->first_name ?: $this->first_name,
+                'last_name' => $wpUser->last_name ?: $this->last_name,
+                'email' => $wpUser->user_email ?: $this->email,
+                'avatar' => $wpUser->avatar_url ?: $this->avatar,
+                'bio' => $wpUser->getMeta('description') ?: $this->bio,
+                'phone' => $wpUser->getMeta('phone') ?: $this->phone,
+                'is_admin' => $wpUser->is_admin,
+            ]);
+
+            return true;
+        }
+        return false;
     }
 }
