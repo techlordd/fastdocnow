@@ -98,6 +98,65 @@ Route::middleware(['auth'])->group(function () {
     });
 });
 
+// Debug route for WordPress auth provider (temporary)
+Route::get('/debug/wordpress-auth', function () {
+    try {
+        $provider = Auth::createUserProvider('wordpress');
+        $wpUser = \App\Models\WordPressUser::first();
+
+        return response()->json([
+            'provider_created' => $provider !== null,
+            'provider_class' => $provider ? get_class($provider) : 'null',
+            'wp_user_found' => $wpUser !== null,
+            'config_enabled' => config('wordpress.enabled'),
+            'auth_config' => config('auth.providers.wordpress_users'),
+            'sample_user' => $wpUser ? [
+                'ID' => $wpUser->ID,
+                'user_login' => $wpUser->user_login,
+                'user_email' => $wpUser->user_email,
+            ] : null
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+})->middleware(['auth', 'admin']);
+
+// Debug route for WordPress users (temporary)
+Route::get('/debug/wordpress-users', function () {
+    try {
+        $wpUsers = \App\Models\WordPressUser::where('user_status', 0)
+            ->orderBy('display_name')
+            ->limit(10)
+            ->get();
+
+        $result = [
+            'total_wp_users' => $wpUsers->count(),
+            'users' => $wpUsers->map(function($wpUser) {
+                return [
+                    'ID' => $wpUser->ID,
+                    'user_login' => $wpUser->user_login,
+                    'user_email' => $wpUser->user_email,
+                    'display_name' => $wpUser->display_name,
+                    'first_name' => $wpUser->first_name,
+                    'last_name' => $wpUser->last_name,
+                    'can_access_chat' => $wpUser->canAccessChat(),
+                    'user_status' => $wpUser->user_status ?? 'not_set'
+                ];
+            })->toArray()
+        ];
+
+        return response()->json($result);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        ], 500);
+    }
+})->middleware(['auth', 'admin']);
+
 // API Fallback Routes (for mobile/API access)
 Route::get('/api/health', function () {
     return response()->json(['status' => 'ok', 'timestamp' => now()]);

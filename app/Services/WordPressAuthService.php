@@ -87,10 +87,41 @@ class WordPressAuthService
             return null;
         }
 
-        // Validate password using WordPress provider
-        $provider = Auth::createUserProvider('wordpress');
-        if (!$provider->validateCredentials($wpUser, $credentials)) {
-            return null;
+        // Validate password using WordPress provider or direct validation
+        try {
+            $provider = Auth::createUserProvider('wordpress');
+            if ($provider) {
+                if (!$provider->validateCredentials($wpUser, $credentials)) {
+                    return null;
+                }
+            } else {
+                // Fallback to direct password validation
+                Log::warning('WordPress provider not available, using direct validation');
+                if (!$this->validateWordPressPassword($password, $wpUser->user_pass)) {
+                    return null;
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Error validating WordPress credentials', [
+                'error' => $e->getMessage(),
+                'wp_user_id' => $wpUser->ID
+            ]);
+
+            // Last resort: try direct password validation
+            try {
+                if (!$this->validateWordPressPassword($password, $wpUser->user_pass)) {
+                    return null;
+                }
+                Log::info('Direct password validation succeeded for WordPress user', [
+                    'wp_user_id' => $wpUser->ID
+                ]);
+            } catch (\Exception $directValidationError) {
+                Log::error('Direct password validation also failed', [
+                    'error' => $directValidationError->getMessage(),
+                    'wp_user_id' => $wpUser->ID
+                ]);
+                return null;
+            }
         }
 
         return $wpUser;
@@ -248,6 +279,103 @@ class WordPressAuthService
     {
         // Use the enhanced canAccessChat method from the WordPressUser model
         return $wpUser->canAccessChat();
+    }
+
+    /**
+     * Validate WordPress password directly (fallback method).
+     */
+    protected function validateWordPressPassword($password, $hash)
+    {
+        if (empty($hash) || empty($password)) {
+            return false;
+        }
+
+        // Check if it's a standard WordPress hash
+        if (strlen($hash) === 34 && substr($hash, 0, 3) === '$P$') {
+            return $this->checkPhpassHash($password, $hash);
+        }
+
+        // Check if it's a bcrypt hash (newer WordPress versions)
+        if (strlen($hash) === 60 && substr($hash, 0, 4) === '$2y$') {
+            return password_verify($password, $hash);
+        }
+
+        // Fallback to MD5 (very old WordPress installations)
+        return md5($password) === $hash;
+    }
+
+    /**
+     * Check PHPass hash (WordPress default).
+     */
+    protected function checkPhpassHash($password, $hash)
+    {
+        $itoa64 = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+
+        if (strlen($hash) !== 34) {
+            return false;
+        }
+
+        $count_log2 = strpos($itoa64, $hash[3]);
+        if ($count_log2 < 7 || $count_log2 > 30) {
+            return false;
+        }
+
+        $count = 1 << $count_log2;
+        $salt = substr($hash, 4, 8);
+
+        if (strlen($salt) !== 8) {
+            return false;
+        }
+
+        $hash_result = md5($salt . $password, true);
+
+        for ($i = 0; $i < $count; $i++) {
+            $hash_result = md5($hash_result . $password, true);
+        }
+
+        $output = substr($hash, 0, 12);
+        $output .= $this->encode64($hash_result, 16);
+
+        return $output === $hash;
+    }
+
+    /**
+     * Encode hash for PHPass.
+     */
+    protected function encode64($input, $count)
+    {
+        $itoa64 = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+        $output = '';
+        $i = 0;
+
+        do {
+            $value = ord($input[$i++]);
+            $output .= $itoa64[$value & 0x3f];
+
+            if ($i < $count) {
+                $value |= ord($input[$i]) << 8;
+            }
+
+            $output .= $itoa64[($value >> 6) & 0x3f];
+
+            if ($i++ >= $count) {
+                break;
+            }
+
+            if ($i < $count) {
+                $value |= ord($input[$i]) << 16;
+            }
+
+            $output .= $itoa64[($value >> 12) & 0x3f];
+
+            if ($i++ >= $count) {
+                break;
+            }
+
+            $output .= $itoa64[($value >> 18) & 0x3f];
+        } while ($i < $count);
+
+        return $output;
     }
 
     /**

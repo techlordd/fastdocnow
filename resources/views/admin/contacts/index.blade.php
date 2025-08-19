@@ -64,6 +64,9 @@
                                             </div>
                                             <div>
                                                 {{ $contact->assignedUser->first_name }} {{ $contact->assignedUser->last_name }}
+                                                @if($contact->assignedUser->wp_user_id)
+                                                <span class="badge bg-info ms-1" title="WordPress User">WP</span>
+                                                @endif
                                                 <br><small class="text-muted">{{ $contact->assignedUser->email }}</small>
                                             </div>
                                         </div>
@@ -90,7 +93,7 @@
                                     <td>
                                         <div class="btn-group" role="group">
                                             <button class="btn btn-sm btn-outline-primary"
-                                                onclick="editContact({{ $contact->id }}, {{ json_encode($contact) }})">
+                                                onclick="editContact({{ $contact->id }}, {{ json_encode($contact->load('assignedUser')) }})"
                                                 <i class="fas fa-edit"></i>
                                             </button>
                                             <button class="btn btn-sm btn-outline-danger"
@@ -152,12 +155,38 @@
                                 <label class="form-label">Assign Staff Member</label>
                                 <select class="form-select select2-users" id="assignedUser" name="assigned_user_id">
                                     <option value="">Select a staff member...</option>
-                                    @foreach($users as $user)
-                                    <option value="{{ $user->id }}">
-                                        {{ $user->first_name }} {{ $user->last_name }} ({{ $user->email }})
-                                    </option>
-                                    @endforeach
+
+                                    @if($users->count() > 0)
+                                    <optgroup label="Laravel Users ({{ $users->count() }})">
+                                        @foreach($users as $user)
+                                        <option value="{{ $user->id }}">
+                                            {{ $user->first_name }} {{ $user->last_name }} ({{ $user->email }})
+                                        </option>
+                                        @endforeach
+                                    </optgroup>
+                                    @endif
+
+                                    @if(isset($wordpressUsers) && $wordpressUsers->count() > 0)
+                                    <optgroup label="WordPress Users ({{ $wordpressUsers->count() }})">
+                                        @foreach($wordpressUsers as $wpUser)
+                                        <option value="{{ $wpUser->id }}">
+                                            {{ $wpUser->first_name }} {{ $wpUser->last_name }} ({{ $wpUser->email }}) - WP: {{ $wpUser->username }}
+                                        </option>
+                                        @endforeach
+                                    </optgroup>
+                                    @else
+                                    <optgroup label="WordPress Users (0)">
+                                        <option disabled>No WordPress users available</option>
+                                    </optgroup>
+                                    @endif
                                 </select>
+
+                                @if(config('app.debug'))
+                                <small class="text-muted mt-1 d-block">
+                                    Debug: Laravel users: {{ $users->count() ?? 0 }},
+                                    WordPress users: {{ isset($wordpressUsers) ? $wordpressUsers->count() : 'undefined' }}
+                                </small>
+                                @endif
                             </div>
                         </div>
                         <div class="col-md-4">
@@ -249,7 +278,15 @@
             document.getElementById('contactName').value = contact.name;
             document.getElementById('contactDescription').value = contact.description || '';
             document.getElementById('contactType').value = contact.type;
-            $('#assignedUser').val(contact.assigned_user_id || '').trigger('change');
+
+            // Handle assigned user - check if it's a WordPress user
+            let assignedUserId = contact.assigned_user_id || '';
+            if (contact.assigned_user && contact.assigned_user.wp_user_id) {
+                // If the assigned user is a WordPress user, use the wp_ prefix
+                assignedUserId = 'wp_' + contact.assigned_user.wp_user_id;
+            }
+            $('#assignedUser').val(assignedUserId).trigger('change');
+
             document.getElementById('sortOrder').value = contact.sort_order || 0;
             document.getElementById('isActive').checked = contact.is_active;
         }
