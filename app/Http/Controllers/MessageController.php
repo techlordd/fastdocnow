@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Message;
 use App\Models\Conversation;
+use App\Services\PusherService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -11,6 +12,13 @@ use Intervention\Image\Facades\Image;
 
 class MessageController extends Controller
 {
+    protected $pusherService;
+
+    public function __construct(PusherService $pusherService)
+    {
+        $this->pusherService = $pusherService;
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -43,12 +51,10 @@ class MessageController extends Controller
 
         // Update conversation timestamp
         $conversation->touch();
+        $user->updateLastSeen();
 
-        // Load user relationship
-        $message->load('user');
-
-        // Broadcast message to conversation participants
-        broadcast(new \App\Events\MessageSent($message))->toOthers();
+        // Use PusherService to broadcast message and handle all related events
+        $this->pusherService->broadcastMessage($message);
 
         // Check if it's an AJAX request
         if ($request->expectsJson()) {
@@ -80,7 +86,6 @@ class MessageController extends Controller
 
         return response()->json(['message' => 'Message deleted successfully']);
     }
-
 
     public function markAsRead(Message $message)
     {
@@ -128,8 +133,13 @@ class MessageController extends Controller
 
         // Create thumbnail
         $thumbnailPath = 'messages/thumbnails/' . $filename;
-        $thumbnail = Image::make($image)->fit(300, 300);
-        Storage::disk('public')->put($thumbnailPath, $thumbnail->stream());
+        try {
+            $thumbnail = Image::make($image)->fit(300, 300);
+            Storage::disk('public')->put($thumbnailPath, $thumbnail->stream());
+        } catch (\Exception $e) {
+            // Continue without thumbnail
+            $thumbnailPath = null;
+        }
 
         // Create message
         $message = Message::create([
@@ -142,19 +152,17 @@ class MessageController extends Controller
             'file_size' => $image->getSize(),
             'metadata' => json_encode([
                 'thumbnail_path' => $thumbnailPath,
-                'width' => $thumbnail->width(),
-                'height' => $thumbnail->height(),
+                'width' => $thumbnail ? $thumbnail->width() : null,
+                'height' => $thumbnail ? $thumbnail->height() : null,
             ]),
         ]);
 
         // Update conversation timestamp
         $conversation->touch();
+        $user->updateLastSeen();
 
-        // Load user relationship
-        $message->load('user');
-
-        // Broadcast message
-        broadcast(new \App\Events\MessageSent($message))->toOthers();
+        // Use PusherService to broadcast message and handle all related events
+        $this->pusherService->broadcastMessage($message);
 
         return response()->json([
             'success' => true,
@@ -246,12 +254,10 @@ class MessageController extends Controller
 
         // Update conversation timestamp
         $conversation->touch();
+        $user->updateLastSeen();
 
-        // Load user relationship
-        $message->load('user');
-
-        // Broadcast message
-        broadcast(new \App\Events\MessageSent($message))->toOthers();
+        // Use PusherService to broadcast message and handle all related events
+        $this->pusherService->broadcastMessage($message);
 
         return response()->json([
             'success' => true,
@@ -340,12 +346,10 @@ class MessageController extends Controller
 
         // Update conversation timestamp
         $conversation->touch();
+        $user->updateLastSeen();
 
-        // Load user relationship
-        $message->load('user');
-
-        // Broadcast message
-        broadcast(new \App\Events\MessageSent($message))->toOthers();
+        // Use PusherService to broadcast message and handle all related events
+        $this->pusherService->broadcastMessage($message);
 
         return response()->json([
             'success' => true,
@@ -353,3 +357,25 @@ class MessageController extends Controller
             'attachments' => $attachments
         ]);
     }
+
+    public function setTyping(Request $request)
+    {
+        $request->validate([
+            'conversation_id' => 'required|exists:conversations,id',
+            'typing' => 'required|boolean'
+        ]);
+
+        $user = Auth::user();
+        $conversation = Conversation::findOrFail($request->conversation_id);
+
+        // Check if user is participant
+        if (!$conversation->participants()->where('user_id', $user->id)->exists()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Broadcast typing status using PusherService
+        $this->pusherService->broadcastTyping($request->conversation_id, $user, $request->typing);
+
+        return response()->json(['success' => true]);
+    }
+}

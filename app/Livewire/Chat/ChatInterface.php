@@ -2,11 +2,9 @@
 
 namespace App\Livewire\Chat;
 
-use App\Events\MessageSent;
-use App\Events\UserTyping;
 use App\Models\Conversation;
 use App\Models\Message;
-use App\Services\NotificationService;
+use App\Services\PusherService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\On;
@@ -31,6 +29,13 @@ class ChatInterface extends Component
         'messageReceived' => 'messageReceived'
     ];
 
+    protected $pusherService;
+
+    public function boot(PusherService $pusherService)
+    {
+        $this->pusherService = $pusherService;
+    }
+
     public function mount($conversationId = null)
     {
         if ($conversationId) {
@@ -50,20 +55,13 @@ class ChatInterface extends Component
         if ($this->conversation) {
             $this->dispatch('conversationLoaded', $this->conversation->id);
             $this->dispatch('scroll-to-bottom');
-            // Add this line to update last_seen_at
+            
+            // Update user's last seen timestamp and broadcast online status
             Auth::user()->updateLastSeen();
+            app(PusherService::class)->userJoinedConversation(Auth::user(), $this->conversation->id);
 
-            // Load messages for this conversation without triggering the conversation selection loop
             $this->dispatch('loadMessagesForConversation', $this->conversation->id);
         }
-    }
-
-    public function setupConversationListeners()
-    {
-        if (!$this->conversation) return;
-
-        // Subscribe to conversation-specific events
-        $this->dispatch('subscribe-to-conversation', ['id' => $this->conversation->id]);
     }
 
     public function refreshConversationData()
@@ -78,8 +76,12 @@ class ChatInterface extends Component
 
     public function clearConversation()
     {
+        if ($this->conversation) {
+            // Broadcast user leaving conversation
+            app(PusherService::class)->userLeftConversation(Auth::user(), $this->conversation->id);
+        }
+        
         $this->conversation = null;
-        $this->messages = [];
         $this->typingUsers = [];
         $this->dispatch('leave-conversation');
     }
@@ -150,8 +152,6 @@ class ChatInterface extends Component
         session()->flash('message', 'Conversation marked as unread.');
     }
 
-
-
     public function refreshMessages()
     {
         \Log::info('ChatInterface: Refresh messages called');
@@ -204,56 +204,25 @@ class ChatInterface extends Component
                 'attachments' => $attachments,
             ]);
 
-            // Send email notifications
-            $recipients = $this->conversation->participants()->where('user_id', '!=', Auth::id())->get();
-            foreach ($recipients as $recipient) {
-                if ($recipient->email_notifications) {
-                    try {
-                        \Illuminate\Support\Facades\Mail::to($recipient->notification_email ?? $recipient->email)->send(new \App\Mail\NewMessageEmail($message, Auth::user()));
-                    } catch (\Exception $e) {
-                        // Fail silently
-                    }
-                }
-            }
-
-            // Load relationships for broadcasting
-            $message->load('user');
-
             // Update conversation timestamp
             $this->conversation->touch();
-
-            // Add this line to update last_seen_at
             Auth::user()->updateLastSeen();
 
             // Clear form first
             $this->reset(['messageText', 'selectedFiles', 'attachmentCaption', 'showAttachmentPreview']);
 
-            // Refresh messages in the chat messages component
+            // Use PusherService to broadcast message (this handles notifications)
+            app(PusherService::class)->broadcastMessage($message);
+
+            // Only refresh messages locally - Pusher will handle other users
             $this->dispatch('refreshChatMessages', $this->conversation->id);
-
-            // Update sidebar without triggering loops
             $this->dispatch('conversationUpdated', $this->conversation->id);
-
-            // Refresh sidebar conversation list
-            $this->dispatch('refreshConversations');
-
-            
-
-            // Dispatch events
-            $this->dispatch('messageAdded');
             $this->dispatch('scroll-to-bottom');
-            $this->dispatch('success', 'Message sent successfully!');
 
         } catch (\Exception $e) {
             $this->dispatch('error', 'Failed to send message: ' . $e->getMessage());
         }
     }
-
-
-
-
-
-
 
     public function updatedSelectedFiles()
     {
@@ -266,8 +235,7 @@ class ChatInterface extends Component
     {
         if (!$this->isTyping && $this->conversation) {
             $this->isTyping = true;
-            broadcast(new UserTyping($this->conversation->id, Auth::user(), true));
-
+            app(PusherService::class)->broadcastTyping($this->conversation->id, Auth::user(), true);
             $this->dispatch('typing-started');
         }
     }
@@ -276,8 +244,7 @@ class ChatInterface extends Component
     {
         if ($this->isTyping && $this->conversation) {
             $this->isTyping = false;
-            broadcast(new UserTyping($this->conversation->id, Auth::user(), false));
-
+            app(PusherService::class)->broadcastTyping($this->conversation->id, Auth::user(), false);
             $this->dispatch('typing-stopped');
         }
     }
@@ -286,13 +253,11 @@ class ChatInterface extends Component
     {
         \Log::info('ChatInterface: Message received', ['event' => $event, 'current_conversation' => $this->conversation?->id]);
 
-        // Only handle if we have a conversation loaded
         if (!$this->conversation) {
             \Log::warning('ChatInterface: No conversation loaded when message received');
             return;
         }
 
-        // Check if this message is for the current conversation
         if (!isset($event['message']['conversation_id']) ||
             $event['message']['conversation_id'] != $this->conversation->id) {
             \Log::info('ChatInterface: Message not for current conversation', [
@@ -302,26 +267,11 @@ class ChatInterface extends Component
             return;
         }
 
-        // Dispatch notification for messages from other users
-        if ($event['message']['user_id'] !== Auth::id()) {
-            $this->dispatch('showNotification', [
-                'title' => 'New Message from ' . $event['message']['user']['first_name'],
-                'body' => $event['message']['content'],
-                'conversationId' => $event['message']['conversation_id']
-            ]);
-        }
-
-        // Forward event to ChatMessages component specifically
+        // Only forward to ChatMessages component to refresh messages
         $this->dispatch('refreshChatMessages', $this->conversation->id);
 
-        // Also dispatch the messageReceived event for components listening to it
-        $this->dispatch('messageReceived', $event);
-
-        // UI updates
+        // Only scroll to bottom and update conversation list for UI updates
         $this->dispatch('scroll-to-bottom');
-        $this->dispatch('messageAdded');
-
-        // Update sidebar conversation list
         $this->dispatch('conversationUpdated', $this->conversation->id);
 
         \Log::info('ChatInterface: Message event processed successfully');
@@ -357,7 +307,6 @@ class ChatInterface extends Component
         $this->sendMessage();
     }
 
-
     public function sendVoiceMessageDirect($audioData, $metadata = [])
     {
         if (!$this->conversation) {
@@ -382,7 +331,7 @@ class ChatInterface extends Component
             // Generate filename with proper extension
             $filename = time() . '_' . uniqid() . '_voice_message.' . $extension;
 
-            // Store file directly in audio messages directory (same as regular audio files)
+            // Store file directly in audio messages directory
             $path = "messages/audios/{$filename}";
             Storage::disk('public')->put($path, $audioBlob);
 
@@ -415,38 +364,17 @@ class ChatInterface extends Component
                 'attachments' => $attachments,
             ]);
 
-            // Load relationships for broadcasting
-            $message->load('user');
-
             // Update conversation timestamp
             $this->conversation->touch();
             Auth::user()->updateLastSeen();
 
+            // Use PusherService to broadcast message and handle all related events
+            app(PusherService::class)->broadcastMessage($message);
+
             // Refresh messages immediately
             $this->dispatch('refreshChatMessages', $this->conversation->id);
-
-            // Update sidebar
-            $this->dispatch('refreshConversations');
-
-            // Broadcast to other users
-            broadcast(new MessageSent($message))->toOthers();
-
-            // Send email notifications
-            $recipients = $this->conversation->participants()->where('user_id', '!=', Auth::id())->get();
-            foreach ($recipients as $recipient) {
-                if ($recipient->email_notifications) {
-                    try {
-                        \Illuminate\Support\Facades\Mail::to($recipient->notification_email ?? $recipient->email)->send(new \App\Mail\NewMessageEmail($message, Auth::user()));
-                    } catch (\Exception $e) {
-                        // Fail silently
-                    }
-                }
-            }
-
-            // Dispatch events
-            $this->dispatch('messageAdded');
+            $this->dispatch('conversationUpdated', $this->conversation->id);
             $this->dispatch('scroll-to-bottom');
-            $this->dispatch('success', 'Voice message sent successfully!');
 
         } catch (\Exception $e) {
             $this->dispatch('error', 'Failed to send voice message: ' . $e->getMessage());
@@ -494,7 +422,6 @@ class ChatInterface extends Component
             if ($fileType === 'image') {
                 try {
                     $thumbnailPath = "messages/thumbnails/{$filename}";
-                    // Skip thumbnail generation if Image class doesn't exist
                     $metadata['thumbnail_path'] = $thumbnailPath;
                 } catch (\Exception $e) {
                     // Continue without thumbnail
@@ -512,7 +439,6 @@ class ChatInterface extends Component
 
         return $attachments;
     }
-
 
     private function determineMessageType($attachments)
     {
@@ -535,8 +461,6 @@ class ChatInterface extends Component
 
         return 'file';
     }
-
-
 
     public function getTypingUsersTextProperty()
     {

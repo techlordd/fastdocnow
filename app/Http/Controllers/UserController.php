@@ -134,16 +134,47 @@ class UserController extends Controller
 
     public function updatePresence(Request $request)
     {
+        // Ensure this endpoint always returns JSON
+        $request->headers->set('Accept', 'application/json');
+
         $user = Auth::user();
+
+        if (!$user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
 
         $online = $request->boolean('online', true);
 
-        if ($online) {
-            $user->markAsOnline();
-        } else {
-            $user->markAsOffline();
-        }
+        try {
+            // Use PusherService to handle online status and broadcasting
+            $pusherService = app(\App\Services\PusherService::class);
 
-        return response()->json(['status' => 'success']);
+            if ($online) {
+                $user->markAsOnline();
+                $pusherService->userCameOnline($user);
+            } else {
+                $user->markAsOffline();
+                $pusherService->userWentOffline($user);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'user_id' => $user->id,
+                'is_online' => $online,
+                'timestamp' => now()->toISOString()
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Presence update failed', [
+                'user_id' => $user->id,
+                'online' => $online,
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Failed to update presence'
+            ], 500);
+        }
     }
 }

@@ -2,26 +2,23 @@
 
 namespace App\Events;
 
-use App\Models\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class UserTyping implements ShouldBroadcast
+class NotificationSent implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     public $conversationId;
-    public $user;
-    public $isTyping;
+    public $notificationData;
 
-    public function __construct($conversationId, User $user, bool $isTyping)
+    public function __construct(int $conversationId, array $notificationData)
     {
         $this->conversationId = $conversationId;
-        $this->user = $user;
-        $this->isTyping = $isTyping;
+        $this->notificationData = $notificationData;
     }
 
     public function broadcastOn(): array
@@ -34,9 +31,14 @@ class UserTyping implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'user_id' => $this->user->id,
-            'user_name' => $this->user->first_name . ' ' . $this->user->last_name,
-            'typing' => $this->isTyping,
+            'type' => 'notification',
+            'data' => $this->notificationData,
+            'timestamp' => now()->toISOString(),
         ];
+    }
+
+    public function broadcastAs(): string
+    {
+        return 'NotificationSent';
     }
 }

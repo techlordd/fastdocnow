@@ -5,10 +5,15 @@ import EmojiPickerMart from './emoji-picker-mart.js';
 // Global instances
 let voiceRecorder = null;
 let emojiPicker = null;
+let currentConversationId = null;
+let echoChannel = null;
+let presenceChannel = null;
+let activeAudioElements = new Map();
 
 // Simple, reliable chat functionality
 document.addEventListener('DOMContentLoaded', function() {
     initializeChat();
+    setupPusherConnection();
 });
 
 // Livewire event listeners
@@ -18,7 +23,6 @@ document.addEventListener('livewire:init', function() {
 
 // Listen for Livewire component updates
 document.addEventListener('livewire:update', function(event) {
-    // Re-initialize emoji picker if chat interface was updated
     if (event.detail.component.name === 'chat.chat-interface') {
         setTimeout(() => {
             initializeEmojiPicker();
@@ -28,60 +32,54 @@ document.addEventListener('livewire:update', function(event) {
 });
 
 function initializeChat() {
-    // Initialize emoji picker
     initializeEmojiPicker();
-
-    // Initialize scroll to bottom button
     initializeScrollButton();
-
-    // Initialize file attachments
     initializeFileHandling();
-
-    // Initialize SweetAlert confirmations
     initializeSweetAlerts();
-
-    // Auto-resize textarea
     initializeTextareaResize();
-
-    // Initialize voice recording
     initializeVoiceRecording();
 }
 
-document.addEventListener('DOMContentLoaded', function () {
-    const sidebar = document.querySelector('.chat-sidebar .chat-header');
-    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-    const mainChatWrapper = document.querySelector('.main-chat-wrapper');
-
-    if (sidebarToggleBtn) {
-        sidebarToggleBtn.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-            mainChatWrapper.classList.toggle('sidebar-open');
-        });
+function setupPusherConnection() {
+    if (!window.Echo) {
+        console.warn('🟡 Echo not available - real-time messaging disabled');
+        return;
     }
 
-    // Close sidebar when a conversation is selected on mobile
-    if (window.Livewire) {
-        window.Livewire.on('conversationSelected', () => {
-            if (window.innerWidth < 991) {
-                sidebar.classList.remove('open');
-                mainChatWrapper.classList.remove('sidebar-open');
-            }
-            // Re-initialize emoji picker when conversation is selected
-            setTimeout(() => {
-                initializeEmojiPicker();
-            }, 100);
-        });
-    }
-});
+    // Listen for conversation changes
+    document.addEventListener('DOMContentLoaded', function () {
+        const sidebar = document.querySelector('.chat-sidebar .chat-header');
+        const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+        const mainChatWrapper = document.querySelector('.main-chat-wrapper');
 
-// Also listen for Livewire navigation events
-document.addEventListener('livewire:navigated', function() {
-    // Re-initialize all chat components when navigating
-    setTimeout(() => {
-        initializeChat();
-    }, 100);
-});
+        if (sidebarToggleBtn) {
+            sidebarToggleBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+                console.log('here');
+                mainChatWrapper.classList.toggle('sidebar-open');
+            });
+        }
 
+        // Close sidebar when a conversation is selected on mobile
+        if (window.Livewire) {
+            window.Livewire.on('conversationSelected', () => {
+                if (window.innerWidth < 991) {
+                    sidebar.classList.remove('open');
+                    mainChatWrapper.classList.remove('sidebar-open');
+                }
+                setTimeout(() => {
+                    initializeEmojiPicker();
+                }, 100);
+            });
+        }
+    });
+
+    document.addEventListener('livewire:navigated', function() {
+        setTimeout(() => {
+            initializeChat();
+        }, 100);
+    });
+}
 
 function initializeLivewireEvents() {
     // Listen for scroll events
@@ -89,88 +87,235 @@ function initializeLivewireEvents() {
         scrollToBottom(true);
     });
 
-    // Listen for success messages
-    Livewire.on('success', (message) => {
-        showSuccessToast(message);
-    });
-
-    // Listen for error messages
-    Livewire.on('error', (message) => {
-        showErrorToast(message);
-    });
-
-    // Listen for new messages
-    Livewire.on('messageAdded', () => {
-        scrollToBottom();
-        updateScrollButton();
-    });
-
-    // Listen for notifications
-    Livewire.on('showNotification', (data) => {
-        showNotificationToast(data);
-    });
-
     // Listen for conversation loaded
     Livewire.on('conversationLoaded', (conversationId) => {
-        // Extract the ID if it's passed as an array or object
         const actualConversationId = Array.isArray(conversationId) ? conversationId[0] :
                                    (typeof conversationId === 'object' && conversationId.id) ? conversationId.id :
                                    conversationId;
 
         setTimeout(() => {
             scrollToBottom(true);
-            // Re-initialize emoji picker when conversation loads
             initializeEmojiPicker();
-            // Re-initialize textarea resize
             initializeTextareaResize();
         }, 100);
 
-        // Only setup chat presence if we have a valid conversation ID and it's different from current
         if (actualConversationId && actualConversationId > 0) {
             if (actualConversationId !== currentConversationId) {
                 console.log('🟢 New conversation loaded:', actualConversationId);
                 setupChatPresence(actualConversationId);
             }
-            // Remove the repetitive "same conversation" log since it's not necessary
-            // and was causing console spam when the same conversation was loaded multiple times
         } else {
             console.warn('🟡 No valid conversation ID provided for real-time setup:', conversationId);
         }
     });
+}
 
-    // Listen for incoming message events and handle them properly
-    Livewire.on('messageReceived', (event) => {
-        console.log('🟢 Livewire messageReceived event triggered:', event);
-        // This will be handled by the individual components that are listening
-    });
+function setupChatPresence(conversationId) {
+    if (!conversationId || conversationId <= 0) {
+        console.warn('🟡 Invalid conversation ID provided:', conversationId);
+        return;
+    }
 
-    // Debug: Listen for all Livewire events
-    if (window.Livewire && window.Livewire.hook) {
-        window.Livewire.hook('message.sent', (message, component) => {
-            if (message.payload.method === 'messageReceived' ||
-                message.payload.method === 'refreshChatMessages' ||
-                message.payload.method === 'refreshConversations') {
-                console.log('🔧 Debug - Livewire message sent:', {
-                    method: message.payload.method,
-                    component: component.name,
-                    payload: message.payload
+    if (currentConversationId === conversationId) {
+        return;
+    }
+
+    if (!window.Echo) {
+        console.warn('🟡 Echo not available - real-time messaging disabled');
+        return;
+    }
+
+    // Leave previous channels
+    if (echoChannel) {
+        window.Echo.leave(`conversation.${currentConversationId}`);
+        echoChannel = null;
+    }
+    if (presenceChannel) {
+        window.Echo.leave(`chat.${currentConversationId}`);
+        presenceChannel = null;
+    }
+
+    currentConversationId = conversationId;
+    console.log('��� Setting up Pusher listeners for conversation:', conversationId);
+
+    try {
+        // Listen for new messages and events
+        echoChannel = window.Echo.private(`conversation.${conversationId}`)
+            .listen('MessageSent', (e) => {
+                console.log('🟢 Message received via Pusher:', e);
+                handlePusherMessage(e);
+            })
+            .listen('UserTyping', (e) => {
+                console.log('��� User typing event:', e);
+                handleUserTyping(e);
+            })
+            .listen('EmailSent', (e) => {
+                console.log('🟢 Email notification sent:', e);
+                showSuccessToast(`Email sent to ${e.recipient.first_name}`);
+            })
+            .listen('NotificationSent', (e) => {
+                console.log('🟢 NotificationSent event received:', e);
+                if (e.data) {
+                    // Slight delay to ensure UI is ready
+                    setTimeout(() => {
+                        showNotificationToast(e.data);
+                    }, 100);
+                }
+            })
+            .listen('UserOnlineStatus', (e) => {
+                console.log('🟢 User online status changed:', e);
+                if (e.user) {
+                    updateUserStatus(e.user.id, e.is_online);
+                    const statusMessage = e.is_online ? 'came online' : 'went offline';
+                    showInfoToast(`${e.user.first_name} ${statusMessage}`);
+                }
+            })
+            .error((error) => {
+                console.error('🔴 Pusher private channel error:', error);
+            });
+
+        // Setup presence channel for online status
+        try {
+            presenceChannel = window.Echo.join(`chat.${conversationId}`)
+                .here((users) => {
+                    console.log('🟢 Users currently online:', users);
+                    users.forEach(user => updateUserStatus(user.id, true));
+                })
+                .joining((user) => {
+                    console.log('🟢 User came online:', user.first_name);
+                    updateUserStatus(user.id, true);
+                    showInfoToast(`${user.first_name} is now online`);
+                })
+                .leaving((user) => {
+                    console.log('🟡 User went offline:', user.first_name);
+                    updateUserStatus(user.id, false);
+                    showInfoToast(`${user.first_name} went offline`);
+                })
+                .error((error) => {
+                    console.warn('🟡 Presence channel auth failed (optional feature):', error.error || error);
                 });
-            }
-        });
+        } catch (error) {
+            console.warn('🟡 Presence channel setup failed (optional feature):', error);
+        }
 
-        window.Livewire.hook('message.received', (message, component) => {
-            if (message.response && (
-                message.response.effects?.dispatched?.some(e => ['messageReceived', 'refreshChatMessages', 'refreshConversations'].includes(e.event)) ||
-                message.payload.method === 'messageReceived' ||
-                message.payload.method === 'refreshChatMessages' ||
-                message.payload.method === 'refreshConversations')) {
-                console.log('🔧 Debug - Livewire message received:', {
-                    method: message.payload?.method,
-                    component: component.name,
-                    response: message.response
-                });
+        console.log('🟢 Pusher setup completed for conversation:', conversationId);
+
+    } catch (error) {
+        console.error('🔴 Error setting up Pusher:', error);
+        currentConversationId = null;
+    }
+}
+
+function handlePusherMessage(e) {
+    console.log('🟢 Processing Pusher message:', e);
+
+    try {
+        // Check if this is a valid message
+        if (!e.message || !e.message.id) {
+            console.log('🟡 Invalid message data, skipping:', e);
+            return;
+        }
+
+        // Show toast notification FIRST for messages from others
+        const isOwnMessage = e.message.user_id === (window.currentUserId || null);
+
+        if (!isOwnMessage) {
+            console.log('🔔 Showing toast notification for incoming message');
+
+            const messageContent = e.message.content ||
+                (e.message.type === 'image' ? '📷 Image' :
+                 e.message.type === 'audio' ? '🎵 Audio message' :
+                 e.message.type === 'video' ? '🎥 Video' :
+                 e.message.type === 'file' ? '📎 File' : 'New message');
+
+            // Show toast immediately
+            showNotificationToast({
+                title: `New Message from ${e.message.user?.first_name || 'Someone'}`,
+                body: messageContent,
+                conversationId: e.message.conversation_id
+            });
+
+            // Trigger email notification
+            triggerEmailNotification(e.message);
+        }
+
+        // Update Livewire components
+        if (window.Livewire) {
+            // Dispatch global event
+            if (window.Livewire.dispatch) {
+                window.Livewire.dispatch('messageReceived', e);
             }
-        });
+
+            // Update components directly but efficiently
+            const allComponents = window.Livewire.all();
+            let componentsUpdated = 0;
+
+            Object.entries(allComponents).forEach(([id, component]) => {
+                if (component.name === 'chat.chat-interface' || component.name === 'chat.chat-messages') {
+                    component.call('messageReceived', e);
+                    componentsUpdated++;
+                }
+            });
+
+            console.log(`🟢 Updated ${componentsUpdated} Livewire components`);
+        }
+
+        // Scroll to bottom after a short delay
+        if (!isOwnMessage) {
+            setTimeout(() => {
+                scrollToBottom();
+            }, 200);
+        }
+
+    } catch (error) {
+        console.error('🔴 Error handling Pusher message:', error);
+    }
+}
+
+function triggerEmailNotification(message) {
+    // Broadcast email notification event
+    if (window.Echo && currentConversationId) {
+        window.Echo.private(`conversation.${currentConversationId}`)
+            .whisper('email-notification', {
+                messageId: message.id,
+                senderId: message.user_id,
+                timestamp: new Date().toISOString()
+            });
+    }
+}
+
+function handleUserTyping(e) {
+    try {
+        const allComponents = window.Livewire.all();
+        for (const [id, component] of Object.entries(allComponents)) {
+            if (component.name === 'chat.chat-interface') {
+                component.call('userTyping', e);
+                return;
+            }
+        }
+        console.warn('🟡 No ChatInterface component found for typing event');
+    } catch (error) {
+        console.error('Error handling typing event:', error);
+    }
+}
+
+function updateUserStatus(userId, isOnline) {
+    const statusElement = document.getElementById(`user-status-${userId}`);
+    if (statusElement) {
+        const circleIcon = statusElement.querySelector('i.fas.fa-circle');
+        const statusText = statusElement.querySelector('span');
+
+        if (isOnline) {
+            statusElement.classList.add('online');
+            statusElement.classList.remove('offline');
+            if (circleIcon) circleIcon.style.color = '#22c55e';
+            if (statusText) statusText.textContent = 'Online';
+        } else {
+            statusElement.classList.add('offline');
+            statusElement.classList.remove('online');
+            if (circleIcon) circleIcon.style.color = '#6b7280';
+            if (statusText) statusText.textContent = 'Offline';
+        }
     }
 }
 
@@ -202,33 +347,24 @@ function updateScrollButton() {
 function initializeScrollButton() {
     const messagesContainer = document.querySelector('.chat-messages');
     if (messagesContainer) {
-        // Add scroll event listener
         messagesContainer.addEventListener('scroll', updateScrollButton);
-        
-        // Initial check
         updateScrollButton();
     }
 }
 
-
-
 function initializeEmojiPicker() {
     try {
-        // Check if container exists first
         const container = document.getElementById('emojiPickerContainer');
         if (!container) {
             console.warn('Emoji picker container not found - chat interface may not be loaded yet');
             return null;
         }
 
-        // If we already have an emoji picker and it's working, don't reinitialize
         if (emojiPicker && emojiPicker.container && emojiPicker.container.parentNode) {
             return emojiPicker;
         }
 
-        // Create new emoji picker instance
         emojiPicker = new EmojiPickerMart();
-
         const success = emojiPicker.initialize('emojiPickerContainer');
         if (!success) {
             console.warn('Failed to initialize emoji picker');
@@ -243,15 +379,12 @@ function initializeEmojiPicker() {
     }
 }
 
-
 function initializeTextareaResize() {
     const textarea = document.getElementById('chat-message-input');
     if (textarea) {
         textarea.addEventListener('input', function() {
             resizeTextarea(this);
         });
-        
-        // Initial resize
         resizeTextarea(textarea);
     }
 }
@@ -262,7 +395,6 @@ function resizeTextarea(textarea) {
 }
 
 function initializeFileHandling() {
-    // File input change handlers
     const fileInputs = document.querySelectorAll('input[type="file"]');
     fileInputs.forEach(input => {
         input.addEventListener('change', function() {
@@ -274,7 +406,6 @@ function initializeFileHandling() {
 }
 
 function initializeSweetAlerts() {
-    // Delete confirmations
     window.confirmDelete = function(title = 'Are you sure?', text = 'This action cannot be undone.') {
         return Swal.fire({
             title: title,
@@ -288,7 +419,6 @@ function initializeSweetAlerts() {
         });
     };
     
-    // General confirmations
     window.confirmAction = function(title = 'Are you sure?', text = '', confirmText = 'Yes') {
         return Swal.fire({
             title: title,
@@ -358,37 +488,75 @@ function showInfoToast(message) {
 }
 
 function showNotificationToast(data) {
-    const Toast = Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: true,
-        confirmButtonText: 'View',
-        timer: 5000,
-        timerProgressBar: true,
-        didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer)
-            toast.addEventListener('mouseleave', Swal.resumeTimer)
-        }
-    });
+    console.log('🔔 showNotificationToast called with data:', data);
 
-    Toast.fire({
-        icon: 'info',
-        title: data.title || 'New Message',
-        text: data.body || '',
-        showCloseButton: true
-    }).then((result) => {
-        if (result.isConfirmed && data.conversationId) {
-            // Navigate to the conversation
-            const sidebarComponent = findSidebarComponent();
-            if (sidebarComponent) {
-                sidebarComponent.call('selectConversation', data.conversationId);
-            }
+    // Check if SweetAlert2 is available
+    if (typeof Swal === 'undefined') {
+        console.error('🔴 SweetAlert2 not available for toast notifications');
+        // Fallback to browser notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(data.title || 'New Message', {
+                body: data.body || '',
+                icon: '/favicon.ico'
+            });
         }
-    });
+        return;
+    }
+
+    try {
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: true,
+            confirmButtonText: 'View',
+            timer: 6000,
+            timerProgressBar: true,
+            customClass: {
+                popup: 'message-toast',
+                title: 'toast-title',
+                content: 'toast-content'
+            },
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer);
+                toast.addEventListener('mouseleave', Swal.resumeTimer);
+            }
+        });
+
+        console.log('🔔 Firing toast notification with SweetAlert2...');
+
+        Toast.fire({
+            icon: 'info',
+            title: data.title || 'New Message',
+            text: data.body || '',
+            showCloseButton: true,
+            background: '#fff',
+            color: '#333'
+        }).then((result) => {
+            console.log('🔔 Toast notification result:', result);
+            if (result.isConfirmed && data.conversationId) {
+                // Navigate to conversation
+                const sidebarComponent = findSidebarComponent();
+                if (sidebarComponent) {
+                    sidebarComponent.call('selectConversation', data.conversationId);
+                } else {
+                    console.log('🟡 Sidebar component not found for navigation');
+                }
+            }
+        }).catch(error => {
+            console.error('🔴 Toast notification error:', error);
+        });
+
+    } catch (error) {
+        console.error('🔴 Error creating toast notification:', error);
+
+        // Fallback to simple alert
+        if (data.title && data.body) {
+            showInfoToast(`${data.title}: ${data.body}`);
+        }
+    }
 }
 
 function findSidebarComponent() {
-    // Find the sidebar component
     const sidebarElement = document.querySelector('.chat-sidebar [wire\\:id]');
     if (sidebarElement) {
         const wireId = sidebarElement.getAttribute('wire:id');
@@ -400,18 +568,15 @@ function findSidebarComponent() {
 // Menu toggle functions
 window.toggleEmojiPicker = function() {
     try {
-        // Hide other menus first
         hideAttachmentMenu();
         hideVoiceRecording();
 
-        // Check if container exists
         const container = document.getElementById('emojiPickerContainer');
         if (!container) {
             showErrorToast('Chat interface not ready. Please wait a moment and try again.');
             return;
         }
 
-        // Initialize emoji picker if not already done
         if (!emojiPicker || !emojiPicker.container || !emojiPicker.container.parentNode) {
             const picker = initializeEmojiPicker();
             if (!picker) {
@@ -420,14 +585,12 @@ window.toggleEmojiPicker = function() {
             }
         }
 
-        // Get target input
         const targetInput = document.getElementById('chat-message-input');
         if (!targetInput) {
             showErrorToast('Message input not found. Please refresh the page.');
             return;
         }
 
-        // Toggle picker
         emojiPicker.toggle(targetInput);
 
     } catch (error) {
@@ -436,14 +599,11 @@ window.toggleEmojiPicker = function() {
     }
 };
 
-
 window.toggleAttachmentMenu = function() {
     const container = document.getElementById('attachmentMenu');
     if (container) {
         const isVisible = container.style.display !== 'none';
         container.style.display = isVisible ? 'none' : 'block';
-        
-        // Hide emoji picker
         hideEmojiPicker();
     }
 };
@@ -454,7 +614,6 @@ function hideEmojiPicker() {
     }
 }
 
-// Scroll to bottom function for button
 window.scrollToBottom = function() {
     scrollToBottom();
 };
@@ -466,14 +625,12 @@ document.addEventListener('click', function(e) {
     const emojiBtn = document.querySelector('[onclick*="toggleEmojiPicker"]');
     const attachmentBtn = document.querySelector('[onclick*="toggleAttachmentMenu"]');
     
-    // Hide emoji picker if clicking outside
     if (emojiContainer && 
         !emojiContainer.contains(e.target) && 
         (!emojiBtn || !emojiBtn.contains(e.target))) {
         hideEmojiPicker();
     }
     
-    // Hide attachment menu if clicking outside
     if (attachmentMenu && 
         !attachmentMenu.contains(e.target) && 
         (!attachmentBtn || !attachmentBtn.contains(e.target))) {
@@ -481,169 +638,71 @@ document.addEventListener('click', function(e) {
     }
 });
 
-
-
 // Export for global use
 window.ChatApp = {
     scrollToBottom,
     showSuccessToast,
     showErrorToast,
     showInfoToast,
+    showNotificationToast,
     confirmDelete: window.confirmDelete,
     confirmAction: window.confirmAction
 };
 
-// Real-time message handling
-let currentConversationId = null;
-let echoChannels = new Map();
-let lastSetupTime = 0;
-let setupTimeout = null;
+// Debug function to test toasts
+window.testToast = function() {
+    console.log('🧪 Testing toast notification...');
+    showNotificationToast({
+        title: 'Test Notification',
+        body: 'This is a test message from the debug function',
+        conversationId: 1
+    });
+};
 
-function setupChatPresence(conversationId) {
-    // Clear any pending setup timeout
-    if (setupTimeout) {
-        clearTimeout(setupTimeout);
-        setupTimeout = null;
+// Test SweetAlert2 availability
+window.testSweetAlert = function() {
+    if (typeof Swal === 'undefined') {
+        console.error('🔴 SweetAlert2 is not available!');
+        alert('SweetAlert2 is not loaded!');
+    } else {
+        console.log('🟢 SweetAlert2 is available');
+        Swal.fire('Test', 'SweetAlert2 is working!', 'success');
     }
+};
 
-    // Validate inputs first
-    if (!conversationId || conversationId <= 0) {
-        console.warn('🟡 Invalid conversation ID provided:', conversationId);
-        return;
-    }
-
-    // Prevent duplicate setup for the same conversation
-    if (currentConversationId === conversationId) {
-        // Silently return without logging to prevent console spam
-        return;
-    }
-
-    // Add debounce to prevent rapid successive calls
-    const now = Date.now();
-    if (now - lastSetupTime < 1000) { // Prevent calls within 1 second
-        setupTimeout = setTimeout(() => setupChatPresence(conversationId), 500);
-        return;
-    }
-    lastSetupTime = now;
-
-    // Check if Echo is available
-    if (!window.Echo) {
-        console.warn('🟡 Echo not available - real-time messaging disabled');
-        return;
-    }
-
-    // Leave previous channels if switching conversations
-    if (currentConversationId && currentConversationId !== conversationId && echoChannels.size > 0) {
-        console.log('🟡 Leaving previous conversation channels:', currentConversationId);
-        echoChannels.forEach((channel, channelName) => {
-            try {
-                window.Echo.leave(channelName);
-            } catch (error) {
-                console.warn('Warning leaving channel:', channelName, error);
+// Debug function to simulate message received
+window.testMessageReceived = function() {
+    console.log('🧪 Testing message received event...');
+    handlePusherMessage({
+        message: {
+            id: 999,
+            conversation_id: 1,
+            user_id: 2, // Different from current user
+            content: 'Test message content',
+            type: 'text',
+            created_at: new Date().toISOString(),
+            user: {
+                id: 2,
+                first_name: 'Test',
+                last_name: 'User'
             }
-        });
-        echoChannels.clear();
-    }
-
-    currentConversationId = conversationId;
-    console.log('🟢 Setting up real-time listeners for conversation:', conversationId);
-
-    try {
-        // Check Echo connection status (optional, don't fail if not available)
-        if (window.Echo.connector && window.Echo.connector.pusher) {
-            const pusher = window.Echo.connector.pusher;
-            console.log('🟢 Pusher connection state:', pusher.connection.state);
         }
+    });
+};
 
-        // Listen for new messages
-        console.log('🔵 Setting up Echo listener for conversation:', conversationId);
-        console.log('🔵 Echo object:', window.Echo);
-
-        const messageChannel = window.Echo.private(`conversation.${conversationId}`)
-            .listen('MessageSent', (e) => {
-                console.log('🟢 New message received via Echo:', e);
-                console.log('🟢 About to call handleIncomingMessage');
-                // Use a slight delay to ensure DOM is ready
-                setTimeout(() => {
-                    handleIncomingMessage(e);
-                }, 50);
-            })
-            .listen('UserTyping', (e) => {
-                console.log('🟢 User typing event:', e);
-                handleUserTyping(e);
-            })
-            .error((error) => {
-                console.error('🔴 Echo private channel error:', error);
-            });
-
-        echoChannels.set(`conversation.${conversationId}`, messageChannel);
-
-        // Optional: Join presence channel for online status (don't fail if this doesn't work)
-        try {
-            const presenceChannel = window.Echo.join(`chat.${conversationId}`)
-                .here((users) => {
-                    console.log('🟢 Users currently in channel:', users);
-                    users.forEach(user => {
-                        updateUserStatus(user.id, true);
-                    });
-                })
-                .joining((user) => {
-                    console.log('🟢 User joining channel:', user.first_name);
-                    updateUserStatus(user.id, true);
-                })
-                .leaving((user) => {
-                    console.log('🟡 User leaving channel:', user.first_name);
-                    updateUserStatus(user.id, false);
-                })
-                .error((error) => {
-                    // Presence channel auth failures are common and optional - just log as warning
-                    console.warn('🟡 Presence channel auth failed (optional feature):', error.error || error);
-                    // Don't show user-facing error for optional presence feature
-                });
-
-            echoChannels.set(`chat.${conversationId}`, presenceChannel);
-        } catch (error) {
-            console.warn('🟡 Presence channel setup failed (optional feature):', error);
-        }
-
-        console.log('🟢 Real-time setup completed for conversation:', conversationId);
-
-    } catch (error) {
-        console.error('🔴 Error setting up real-time messaging:', error);
-        currentConversationId = null;
-    }
-}
-setTimeout(() => {
-    handleIncomingMessage(e);
-}, 50);
-// Add this helper function to chat.js
-function updateUserStatus(userId, isOnline) {
-    const statusElement = document.getElementById(`user-status-${userId}`);
-    if (statusElement) {
-        const circleIcon = statusElement.querySelector('i.fas.fa-circle');
-        const statusText = statusElement.querySelector('span'); // Assuming the text is in a span
-
-        if (isOnline) {
-            statusElement.classList.add('online');
-            statusElement.classList.remove('offline');
-            if (circleIcon) circleIcon.style.color = '#22c55e'; // Green
-            if (statusText) statusText.textContent = 'Online';
-        } else {
-            statusElement.classList.add('offline');
-            statusElement.classList.remove('online');
-            if (circleIcon) circleIcon.style.color = '#6b7280'; // Gray
-            // For offline, we might want to display "Last seen X minutes ago".
-            // This would require fetching the last_seen_at from the server or having it available.
-            // For now, just show "Offline" or "Last seen..." if the data is available in the DOM.
-            // The Livewire poll will eventually update the "Last seen" text.
-            if (statusText) statusText.textContent = 'Offline'; // Placeholder, Livewire will update
-        }
-    }
-}
+// Debug function to check Echo status
+window.debugEcho = function() {
+    console.log('🔍 Echo Debug Info:', {
+        echoAvailable: !!window.Echo,
+        currentConversationId: currentConversationId,
+        echoChannel: !!echoChannel,
+        presenceChannel: !!presenceChannel,
+        currentUserId: window.currentUserId
+    });
+};
 
 // Voice Recording Functions
 function initializeVoiceRecording() {
-    // Check if voice recording is supported at the browser level
     if (!VoiceRecorder.isSupported()) {
         const voiceBtn = document.getElementById('voiceRecorderBtn');
         const disabledBtn = document.getElementById('voiceRecorderBtnDisabled');
@@ -656,7 +715,6 @@ function initializeVoiceRecording() {
             disabledBtn.style.display = 'block';
             disabledBtn.setAttribute('title', VoiceRecorder.getUnsupportedReason());
 
-            // Add click handler to show explanation
             disabledBtn.onclick = function() {
                 showErrorToast(VoiceRecorder.getUnsupportedReason());
             };
@@ -666,7 +724,6 @@ function initializeVoiceRecording() {
         return;
     }
 
-    // Voice recording is supported - show the normal button
     const voiceBtn = document.getElementById('voiceRecorderBtn');
     const disabledBtn = document.getElementById('voiceRecorderBtnDisabled');
 
@@ -678,22 +735,18 @@ function initializeVoiceRecording() {
         disabledBtn.style.display = 'none';
     }
 
-    // Initialize voice recorder
     voiceRecorder = new VoiceRecorder();
 
-    // Handle recording completion
     voiceRecorder.onRecordingComplete = function(audioFile, duration) {
         sendVoiceMessage(audioFile, duration);
     };
 
-    // Listen for recording updates
     document.addEventListener('voiceRecordingUpdate', function(event) {
         updateRecordingUI(event.detail);
     });
 }
 
 function toggleVoiceRecorder() {
-    // Check if voice recording is supported
     if (!VoiceRecorder.isSupported()) {
         showErrorToast(VoiceRecorder.getUnsupportedReason());
         return;
@@ -702,36 +755,29 @@ function toggleVoiceRecorder() {
     const isRecording = voiceRecorder && voiceRecorder.isRecording;
 
     if (isRecording) {
-        // Stop recording
         stopVoiceRecording();
     } else {
-        // Start recording
         startVoiceRecording();
     }
 }
 
 async function startVoiceRecording() {
     try {
-        // Check if already recording
         if (voiceRecorder && voiceRecorder.isRecording) {
             console.warn('Voice recording already in progress');
             return;
         }
 
-        // Hide other menus
         hideEmojiPicker();
         hideAttachmentMenu();
 
-        // Show recording UI
         const container = document.getElementById('voiceRecordingContainer');
         if (container) {
             container.style.display = 'block';
             container.classList.add('show');
         }
 
-        // Initialize recorder if needed
         if (!voiceRecorder) {
-            // Double-check support before creating
             if (!VoiceRecorder.isSupported()) {
                 throw new Error(VoiceRecorder.getUnsupportedReason());
             }
@@ -742,11 +788,9 @@ async function startVoiceRecording() {
             };
         }
 
-        // Start recording
         const success = await voiceRecorder.startRecording();
 
         if (success) {
-            // Update button state
             const voiceBtn = document.getElementById('voiceRecorderBtn');
             if (voiceBtn) {
                 voiceBtn.classList.add('recording');
@@ -762,7 +806,6 @@ async function startVoiceRecording() {
         console.error('Failed to start voice recording:', error);
         hideVoiceRecording();
 
-        // Handle specific error types
         if (error.name === 'NotAllowedError') {
             showErrorToast('Microphone access denied. Please allow microphone access in your browser settings and refresh the page.');
         } else if (error.name === 'NotFoundError') {
@@ -778,7 +821,6 @@ async function startVoiceRecording() {
         } else if (error.message && error.message.includes('permission')) {
             showErrorToast('Microphone permission is required. Please allow microphone access in your browser settings.');
         } else {
-            // Use the specific error message if available, otherwise use a generic message
             const errorMessage = error.message || 'Failed to start voice recording. Please try again.';
             showErrorToast(errorMessage);
         }
@@ -818,7 +860,6 @@ function hideVoiceRecording() {
         voiceBtn.setAttribute('title', 'Record voice message');
     }
 
-    // Reset recording time display
     const timeElement = document.getElementById('recordingTime');
     if (timeElement) {
         timeElement.textContent = '0:00';
@@ -852,15 +893,11 @@ function formatRecordingTime(seconds) {
 async function sendVoiceMessage(audioFile, duration) {
     try {
         hideVoiceRecording();
-
-        // Show loading state
         showInfoToast('Sending voice message...');
 
-        // Convert audio file to base64 (prevent stack overflow for large files)
         const arrayBuffer = await audioFile.arrayBuffer();
         const uint8Array = new Uint8Array(arrayBuffer);
 
-        // Convert in chunks to prevent stack overflow
         let binaryString = '';
         const chunkSize = 8192;
         for (let i = 0; i < uint8Array.length; i += chunkSize) {
@@ -869,7 +906,6 @@ async function sendVoiceMessage(audioFile, duration) {
         }
         const base64String = btoa(binaryString);
 
-        // Find the ChatInterface component
         const messageInputElement = document.getElementById('chat-message-input');
         const chatInterfaceElement = messageInputElement ?
             messageInputElement.closest('[wire\\:id]') :
@@ -884,7 +920,6 @@ async function sendVoiceMessage(audioFile, duration) {
             throw new Error('Chat component not found');
         }
 
-        // Call direct voice message upload method
         chatComponent.call('sendVoiceMessageDirect', base64String, {
             duration: duration,
             isVoiceMessage: true,
@@ -910,27 +945,20 @@ function toggleVoiceMessage(button) {
     const audioSrc = player.getAttribute('data-audio-src');
     const playIcon = button.querySelector('i');
 
-    // Check if we already have a stable audio element for this source
     let audio = activeAudioElements.get(audioSrc);
 
     if (!audio) {
-        // Create new audio element and store it
         audio = document.createElement('audio');
         audio.src = audioSrc;
-        audio.preload = 'auto'; // Changed from 'metadata' to 'auto' for better loading
+        audio.preload = 'auto';
         audio.style.display = 'none';
 
-        // Store reference to prevent garbage collection
         activeAudioElements.set(audioSrc, audio);
-
-        // Add to DOM (append to body to prevent removal during updates)
         document.body.appendChild(audio);
 
-        // Add event listeners only once
         audio.addEventListener('ended', function() {
             playIcon.className = 'fas fa-play';
             resetVoiceMessageProgress(player);
-            // Clean up reference when audio ends
             activeAudioElements.delete(audioSrc);
             if (audio.parentNode) {
                 audio.parentNode.removeChild(audio);
@@ -938,7 +966,6 @@ function toggleVoiceMessage(button) {
         });
 
         audio.addEventListener('timeupdate', function() {
-            // Find current player in DOM (it might have been updated)
             const currentPlayer = document.querySelector(`[data-audio-src="${audioSrc}"]`);
             if (currentPlayer) {
                 updateVoiceMessageProgress(currentPlayer, audio);
@@ -955,15 +982,6 @@ function toggleVoiceMessage(button) {
                     durationElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
                 }
             }
-        });
-
-        audio.addEventListener('canplaythrough', function() {
-            console.log('Audio can play through:', audioSrc);
-            // Audio is fully loaded and can play
-        });
-
-        audio.addEventListener('loadstart', function() {
-            console.log('Audio loading started:', audioSrc);
         });
 
         audio.addEventListener('error', function(e) {
@@ -999,7 +1017,6 @@ function toggleVoiceMessage(button) {
     }
 
     if (audio.paused) {
-        // Stop any other playing voice messages
         activeAudioElements.forEach((otherAudio, otherSrc) => {
             if (otherAudio !== audio && !otherAudio.paused) {
                 otherAudio.pause();
@@ -1014,16 +1031,10 @@ function toggleVoiceMessage(button) {
             }
         });
 
-        // Show loading state
         playIcon.className = 'fas fa-spinner fa-spin';
 
-        // Check if audio is ready to play
-        console.log('Audio ready state:', audio.readyState, 'HAVE_ENOUGH_DATA:', audio.HAVE_ENOUGH_DATA);
         if (audio.readyState >= audio.HAVE_ENOUGH_DATA) {
-            // Audio is ready, play immediately
-            console.log('Audio ready, playing immediately');
             audio.play().then(() => {
-                console.log('Audio play successful');
                 playIcon.className = 'fas fa-pause';
             }).catch(error => {
                 console.error('Error playing audio immediately:', error);
@@ -1031,15 +1042,11 @@ function toggleVoiceMessage(button) {
                 playIcon.className = 'fas fa-play';
             });
         } else {
-            // Audio is not ready, wait for it to load
-            console.log('Audio not ready, waiting for canplay event. Current state:', audio.readyState);
             const onCanPlay = () => {
-                console.log('Audio canplay event fired');
                 audio.removeEventListener('canplay', onCanPlay);
                 audio.removeEventListener('error', onError);
 
                 audio.play().then(() => {
-                    console.log('Audio play successful after loading');
                     playIcon.className = 'fas fa-pause';
                 }).catch(error => {
                     console.error('Error playing audio after loading:', error);
@@ -1058,8 +1065,6 @@ function toggleVoiceMessage(button) {
 
             audio.addEventListener('canplay', onCanPlay);
             audio.addEventListener('error', onError);
-
-            // Trigger loading if not already started
             audio.load();
         }
     } else {
@@ -1077,13 +1082,11 @@ function updateVoiceMessageProgress(player, audio) {
         const progress = (audio.currentTime / audio.duration) * 100;
         progressBar.style.width = progress + '%';
 
-        // Update waveform bars
         const activeBarIndex = Math.floor((audio.currentTime / audio.duration) * waveformBars.length);
         waveformBars.forEach((bar, index) => {
             bar.classList.toggle('active', index <= activeBarIndex);
         });
 
-        // Update duration countdown
         if (durationElement) {
             const remainingTime = audio.duration - audio.currentTime;
             const minutes = Math.floor(remainingTime / 60);
@@ -1107,101 +1110,10 @@ function resetVoiceMessageProgress(player) {
         bar.classList.remove('active');
     });
 
-    // Reset duration to full duration
     if (durationElement && audio && audio.duration) {
         const minutes = Math.floor(audio.duration / 60);
         const seconds = Math.floor(audio.duration % 60);
         durationElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    }
-}
-
-// Simple audio management - store audio references to prevent DOM removal
-const activeAudioElements = new Map();
-
-// Handle incoming messages from Pusher
-function handleIncomingMessage(e) {
-    console.log('🟢 handleIncomingMessage called with:', e);
-    console.log('🟢 Livewire object:', window.Livewire);
-
-    try {
-        // First, dispatch the messageReceived event to all Livewire components
-        console.log('🟢 About to dispatch messageReceived event to Livewire components');
-        if (window.Livewire && window.Livewire.dispatch) {
-            window.Livewire.dispatch('messageReceived', e);
-            console.log('🟢 Successfully dispatched messageReceived event');
-        } else {
-            console.error('🔴 Livewire.dispatch not available');
-        }
-
-        // Also dispatch to individual components by name as backup
-        const allComponents = window.Livewire.all();
-        let updatedComponents = 0;
-
-        Object.entries(allComponents).forEach(([id, component]) => {
-            if (component.name === 'chat.chat-interface') {
-                console.log('🟢 Calling messageReceived on ChatInterface component');
-                component.call('messageReceived', e);
-                updatedComponents++;
-            } else if (component.name === 'chat.chat-messages') {
-                console.log('🟢 Calling messageReceived on ChatMessages component');
-                component.call('messageReceived', e);
-                updatedComponents++;
-            }
-        });
-
-        console.log(`🟢 Updated ${updatedComponents} components via messageReceived`);
-
-        // Scroll to bottom and show notification for messages from others
-        if (e.message && e.message.user_id !== (window.currentUserId || null)) {
-            setTimeout(() => {
-                scrollToBottom();
-            }, 200);
-
-            // Show notification if not on current conversation
-            if (e.message.conversation_id != currentConversationId) {
-                showNotificationToast({
-                    title: `New Message from ${e.message.user?.first_name || 'Someone'}`,
-                    body: e.message.content || 'New message',
-                    conversationId: e.message.conversation_id
-                });
-            }
-        }
-
-    } catch (error) {
-        console.error('🔴 Error handling incoming message:', error);
-        console.error('Error details:', error.stack);
-    }
-}
-
-// Handle user typing events
-function handleUserTyping(e) {
-    try {
-        // Find ChatInterface component to handle typing events
-        const chatMainElement = document.getElementById('chatMain');
-        if (chatMainElement) {
-            const wireId = chatMainElement.getAttribute('wire:id');
-            if (wireId) {
-                const chatInterfaceComponent = window.Livewire.find(wireId);
-                if (chatInterfaceComponent) {
-                    console.log('🟢 Handling typing event via ChatInterface:', e);
-                    chatInterfaceComponent.call('userTyping', e);
-                    return;
-                }
-            }
-        }
-
-        // Fallback: search for any chat component
-        const allComponents = window.Livewire.all();
-        for (const [id, component] of Object.entries(allComponents)) {
-            if (component.name === 'chat.chat-interface') {
-                component.call('userTyping', e);
-                return;
-            }
-        }
-
-        console.warn('🟡 No ChatInterface component found for typing event');
-    } catch (error) {
-        console.error('Error handling typing event:', error);
     }
 }
 
@@ -1211,64 +1123,3 @@ window.startVoiceRecording = startVoiceRecording;
 window.stopVoiceRecording = stopVoiceRecording;
 window.cancelVoiceRecording = cancelVoiceRecording;
 window.toggleVoiceMessage = toggleVoiceMessage;
-
-// Debug function to test message reception
-window.testMessageReception = function() {
-    console.log('🔧 Testing message reception...');
-
-    // Direct approach: Use debug methods that return data
-    let promises = [];
-
-    // Test ChatMessages
-    const chatMessagesElement = document.querySelector('[data-component="chat-messages"]');
-    if (chatMessagesElement) {
-        const wireId = chatMessagesElement.getAttribute('wire:id');
-        if (wireId) {
-            const component = window.Livewire.find(wireId);
-            if (component) {
-                console.log('🔧 Test: Testing ChatMessages with testRefresh');
-                const promise = component.call('testRefresh').then(result => {
-                    console.log('🔧 ChatMessages testRefresh result:', result);
-                }).catch(error => {
-                    console.error('🔧 ChatMessages testRefresh error:', error);
-                });
-                promises.push(promise);
-            }
-        }
-    }
-
-    // Test ConversationSidebar
-    const sidebarElement = document.querySelector('[data-component="conversation-sidebar"]');
-    if (sidebarElement) {
-        const wireId = sidebarElement.getAttribute('wire:id');
-        if (wireId) {
-            const component = window.Livewire.find(wireId);
-            if (component) {
-                console.log('🔧 Test: Testing ConversationSidebar with testRefresh');
-                const promise = component.call('testRefresh').then(result => {
-                    console.log('🔧 ConversationSidebar testRefresh result:', result);
-                }).catch(error => {
-                    console.error('🔧 ConversationSidebar testRefresh error:', error);
-                });
-                promises.push(promise);
-            }
-        }
-    }
-
-    // Wait for all promises and show final result
-    Promise.all(promises).then(() => {
-        console.log('🔧 Test: All components tested. Check Laravel logs for detailed info.');
-    }).catch(error => {
-        console.error('🔧 Test: Error during testing:', error);
-    });
-
-    if (promises.length === 0) {
-        console.error('🔧 Test: No components found!');
-        // Show available components
-        const allComponents = window.Livewire.all();
-        console.log('Available Livewire components:');
-        Object.entries(allComponents).forEach(([id, comp]) => {
-            console.log(`  - ${id}: ${comp.name} (element: ${comp.el.tagName}${comp.el.id ? '#' + comp.el.id : ''})`);
-        });
-    }
-};

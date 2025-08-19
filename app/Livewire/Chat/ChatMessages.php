@@ -84,18 +84,20 @@ class ChatMessages extends Component
             return; // Not for this conversation
         }
 
+        // Store current message count to detect changes
+        $previousCount = count($this->messages);
+
         $this->loadMessages();
         $this->markMessagesAsRead();
 
-        // Force component re-render - multiple approaches
-        $this->skipRender = false;
-
-        // Force Livewire to re-render by updating a property
-        $this->messages = $this->messages; // This forces reactivity
-
-        $this->dispatch('scroll-to-bottom');
-        $this->dispatch('messageAdded');
-        \Log::info('ChatMessages: Messages refreshed', ['count' => count($this->messages)]);
+        // Only dispatch events if messages actually changed
+        $newCount = count($this->messages);
+        if ($newCount !== $previousCount) {
+            $this->dispatch('scroll-to-bottom');
+            \Log::info('ChatMessages: Messages refreshed', ['previous' => $previousCount, 'new' => $newCount]);
+        } else {
+            \Log::info('ChatMessages: No new messages to refresh');
+        }
     }
 
     public function forceRefresh()
@@ -118,15 +120,18 @@ class ChatMessages extends Component
         if (isset($event['message']['conversation_id']) &&
             $event['message']['conversation_id'] == $this->conversationId) {
 
+            // Store current message count
+            $previousCount = count($this->messages);
+
             $this->loadMessages();
             $this->markMessagesAsRead();
 
-            // Force component re-render
-            $this->skipRender = false;
+            $newCount = count($this->messages);
 
             \Log::info('ChatMessages: Messages reloaded for conversation', [
                 'conversationId' => $this->conversationId,
-                'message_count' => count($this->messages)
+                'previous_count' => $previousCount,
+                'new_count' => $newCount
             ]);
         }
     }

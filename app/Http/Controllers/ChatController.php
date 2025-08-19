@@ -4,11 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\Conversation;
 use App\Models\User;
+use App\Services\PusherService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class ChatController extends Controller
 {
+    protected $pusherService;
+
+    public function __construct(PusherService $pusherService)
+    {
+        $this->pusherService = $pusherService;
+    }
     public function index(Request $request)
     {
         $user = Auth::user();
@@ -91,7 +99,7 @@ class ChatController extends Controller
         $conversationId = $request->conversation_id;
         $user = Auth::user();
 
-        broadcast(new \App\Events\UserTyping($conversationId, $user, true));
+        $this->pusherService->broadcastTyping($conversationId, $user, true);
 
         return response()->json(['status' => 'typing_started']);
     }
@@ -101,7 +109,7 @@ class ChatController extends Controller
         $conversationId = $request->conversation_id;
         $user = Auth::user();
 
-        broadcast(new \App\Events\UserTyping($conversationId, $user, false));
+        $this->pusherService->broadcastTyping($conversationId, $user, false);
 
         return response()->json(['status' => 'typing_stopped']);
     }
@@ -356,8 +364,8 @@ class ChatController extends Controller
         $messageHtml .= '<div class="message-time">' . $message->created_at->format('H:i') . '</div>';
         $messageHtml .= '</div>';
 
-        // Broadcast the message to other participants
-        broadcast(new \App\Events\MessageSent($message->load('user')))->toOthers();
+        // Use PusherService to broadcast message and handle all related events
+        $this->pusherService->broadcastMessage($message->load('user'));
 
         return response()->json([
             'success' => true,

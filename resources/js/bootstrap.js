@@ -47,10 +47,15 @@ window.axios.interceptors.response.use(
 
         // Handle common errors
         if (error.response?.status === 401) {
-            window.location.href = '/login';
+            // Only redirect to login for non-API requests or critical failures
+            if (!error.config?.url?.includes('/api/user/presence')) {
+                window.location.href = '/login';
+            }
         } else if (error.response?.status === 419) {
-            // CSRF token mismatch, reload page
-            window.location.reload();
+            // CSRF token mismatch - only reload for non-presence API calls
+            if (!error.config?.url?.includes('/api/user/presence')) {
+                window.location.reload();
+            }
         } else if (error.response?.status >= 500) {
             console.error('Server error:', error.response);
         }
@@ -90,35 +95,37 @@ window.addEventListener('offline', function() {
     document.body.classList.add('offline');
 });
 
-// Online presence tracking
+// Online presence tracking - DISABLED to prevent page refreshes
+// Presence is now handled through Pusher events and user interactions
 function updateOnlinePresence() {
-    if (document.querySelector('meta[name="api-token"]')?.getAttribute('content')) {
-        window.axios.post('/api/user/presence', { online: true }).catch(() => {
-            // Silently fail - user might not be authenticated
-        });
-    }
+    console.log('🟡 Automatic presence tracking disabled - using Pusher events instead');
+    // Presence updates are now handled by:
+    // 1. PusherService when user joins/leaves conversations
+    // 2. User interaction events (typing, sending messages)
+    // 3. Page visibility changes through Pusher
 }
 
-// Update presence every 30 seconds
-setInterval(updateOnlinePresence, 30000);
+// Presence tracking temporarily disabled
+// setInterval(updateOnlinePresence, 30000);
 
-// Update presence when page becomes visible
+// Manual presence update only on visibility change (if needed)
 document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
-        updateOnlinePresence();
+        console.log('🟢 Page became visible - presence handled by Pusher');
+        // updateOnlinePresence(); // Disabled to prevent refreshes
+    } else {
+        console.log('🟡 Page became hidden - presence handled by Pusher');
     }
 });
 
-// Update presence on page load
-document.addEventListener('DOMContentLoaded', updateOnlinePresence);
+// Remove automatic presence update on page load
+// document.addEventListener('DOMContentLoaded', updateOnlinePresence);
 
-// Mark as offline when page is about to unload
+// Presence on page unload - DISABLED to prevent refresh issues
 window.addEventListener('beforeunload', () => {
-    if (navigator.sendBeacon && document.querySelector('meta[name="api-token"]')?.getAttribute('content')) {
-        const formData = new FormData();
-        formData.append('online', 'false');
-        navigator.sendBeacon('/api/user/presence', formData);
-    }
+    console.log('🟡 Page unloading - presence managed by Pusher timeouts');
+    // Disabled to prevent refresh issues
+    // Presence will timeout naturally on the server side
 });
 
 // Export for global use

@@ -14,8 +14,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->alias([
             'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'presence' => \App\Http\Middleware\UserPresenceMiddleware::class,
         ]);
+
+        // Presence middleware removed from web group to prevent API conflicts
+        // Online status is now handled via PusherService and explicit API calls
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
-    })->create();   
+    })->create();
