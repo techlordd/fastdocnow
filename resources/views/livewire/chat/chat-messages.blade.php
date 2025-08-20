@@ -25,6 +25,7 @@
                     $imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'svg'];
                     $videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv', '3gp'];
                     $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'flac', 'm4a', 'wma', 'webm'];
+                    $isPdf = $extension === 'pdf';
                     $isImage = in_array($extension, $imageExtensions);
                     $isVideo = in_array($extension, $videoExtensions);
                     $isAudio = in_array($extension, $audioExtensions);
@@ -35,7 +36,7 @@
                         @php
                         $imagePath = 'public/storage/' . $attachment['path'];
                         @endphp
-                        <a href="{{ $imagePath }}" data-fancybox="chat-images" data-caption="{{ $attachment['name'] }}" class="attacthment_mesg">
+                        <a href="{{ $imagePath }}" data-fancybox="chat-gallery" data-caption="{{ $attachment['name'] }}" class="attacthment_mesg">
                             <img src="{{ $imagePath }}" alt="{{ $attachment['name'] }}" class="message-image" loading="lazy" style="max-width: 360px; border-radius: 12px; cursor: pointer;">
                         </a>
                     </div>
@@ -128,6 +129,26 @@
                             Your browser does not support the audio element.
                         </audio>
                         @endif
+                    </div>
+                    @elseif($isPdf)
+                    <div class="message-pdf-container mb-2">
+                        @php
+                        $pdfPath = 'public/storage/' . $attachment['path'];
+                        @endphp
+                        <a href="{{ $pdfPath }}" data-fancybox="chat-gallery" data-type="iframe" data-caption="{{ $attachment['name'] }}" class="message-pdf-link">
+                            <div class="pdf-preview" style="max-width: 360px; border-radius: 12px; padding: 16px; background: linear-gradient(135deg, #ff6b6b, #ee5a52); color: white; display: flex; align-items: center; cursor: pointer; transition: all 0.3s ease;">
+                                <div class="pdf-icon" style="margin-right: 12px;">
+                                    <i class="fas fa-file-pdf fa-2x"></i>
+                                </div>
+                                <div class="pdf-info" style="flex: 1;">
+                                    <div class="pdf-name" style="font-weight: 600; margin-bottom: 4px;">{{ $attachment['name'] }}</div>
+                                    <div class="pdf-size" style="font-size: 0.875rem; opacity: 0.9;">{{ round($attachment['size'] / 1024, 2) }} KB • PDF Document</div>
+                                </div>
+                                <div class="pdf-view-icon">
+                                    <i class="fas fa-external-link-alt"></i>
+                                </div>
+                            </div>
+                        </a>
                     </div>
                     @else
                     <div class="message-file-container mb-2">

@@ -93,10 +93,10 @@
                                     <td>
                                         <div class="btn-group" role="group">
                                             <button class="btn btn-sm btn-outline-primary"
-                                                onclick="editContact({{ $contact->id }}, {{ json_encode($contact->load('assignedUser')) }})"
+                                                onclick="editContact({{ $contact->id }}, {{ json_encode($contact->load('assignedUser')) }})">
                                                 <i class="fas fa-edit"></i>
                                             </button>
-                                            <button class="btn btn-sm btn-outline-danger"
+                                            <button class="btn btn-sm btn-outline-primary ms-2"
                                                 onclick="deleteContact({{ $contact->id }}, '{{ $contact->name }}')">
                                                 <i class="fas fa-trash"></i>
                                             </button>

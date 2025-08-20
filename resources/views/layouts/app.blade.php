@@ -1,3 +1,6 @@
+@php
+use Illuminate\Support\Facades\Cache;
+@endphp
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 
@@ -54,6 +57,7 @@
         .btn-outline-primary:focus {
             background: var(--primary-color) !important;
             border-color: var(--primary-color) !important;
+            color: #fff !important;
         }
 
         .text-primary {
@@ -163,7 +167,7 @@
     <!-- Favicon -->
     <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('images/favicon-16x16.png') }}">
     <link rel="apple-touch-icon" href="{{ asset('images/apple-touch-icon.png') }}">
-    <meta name="theme-color" content="{{ auth()->user()->theme_color ?? '#6600ff' }}">
+    <meta name="theme-color" content="{{ Cache::get('system_theme', ['primary_color' => '#6600ff'])['primary_color'] }}">
 
     @livewireStyles
     @stack('head')
@@ -193,7 +197,7 @@
                 </a>
 
                 @if(auth()->user()->is_admin)
-                <a class="nav-link px-3 {{ request()->routeIs('admin.*') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}">
+                <a class="nav-link px-3 {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}" href="{{ route('admin.dashboard') }}">
                     <i class="fas fa-tachometer-alt me-2"></i>Dashboard
                 </a>
                 <a class="nav-link px-3 {{ request()->routeIs('admin.contacts.*') ? 'active' : '' }}" href="{{ route('admin.contacts.index') }}">
@@ -374,8 +378,7 @@
                 // Update theme-color meta tag
                 document.querySelector('meta[name="theme-color"]').setAttribute('content', color);
 
-                // Save to localStorage for persistence
-                localStorage.setItem('app-theme-color', color);
+                // Note: No localStorage saving since theme is now globally controlled by admin
             }
         }
 
@@ -399,12 +402,34 @@
                 (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
         }
 
+        // Load current theme from API
+        function loadCurrentTheme() {
+            fetch('/api/theme')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.theme) {
+                        updateTheme(data.theme.primary_color);
+                    }
+                })
+                .catch(error => {
+                    console.warn('Failed to load theme:', error);
+                    // Fallback to default
+                    updateTheme('{{ Cache::get("system_theme", ["primary_color" => "#6600ff"])["primary_color"] }}');
+                });
+        }
+
+        // Listen for theme updates from other tabs
+        window.addEventListener('storage', function(e) {
+            if (e.key === 'theme-updated') {
+                // Reload theme when updated from admin panel
+                setTimeout(() => loadCurrentTheme(), 200);
+            }
+        });
+
         // Initialize theme on page load
         document.addEventListener('DOMContentLoaded', function() {
-            // Apply saved color or user preference
-            const savedColor = localStorage.getItem('app-theme-color') || '{{ auth()->user()->theme_color ?? "#6600ff" }}';
-
-            updateTheme(savedColor);
+            // Load current theme dynamically
+            loadCurrentTheme();
 
             // Initialize dropdowns
             if (typeof bootstrap !== 'undefined') {
@@ -439,6 +464,7 @@
 
         // Expose theme functions globally
         window.updateTheme = updateTheme;
+        window.loadCurrentTheme = loadCurrentTheme;
     </script>
 </body>
 

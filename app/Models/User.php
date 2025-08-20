@@ -23,13 +23,12 @@ class User extends Authenticatable
         'timezone',
         'language',
         'theme',
-        'theme_color',
         'email_notifications',
-        'sms_notifications',
+
         'push_notifications',
         'sound_notifications',
         'notification_email',
-        'notification_phone',
+
         'notification_frequency',
         'quiet_hours_start',
         'quiet_hours_end',
@@ -55,7 +54,7 @@ class User extends Authenticatable
         'last_login_at' => 'datetime',
         'password' => 'hashed',
         'email_notifications' => 'boolean',
-        'sms_notifications' => 'boolean',
+
         'push_notifications' => 'boolean',
         'sound_notifications' => 'boolean',
         'is_online' => 'boolean',

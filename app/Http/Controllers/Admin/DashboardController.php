@@ -101,7 +101,18 @@ class DashboardController extends Controller
             $config['app_logo'] = $logoPath;
         }
 
+        // Clear any existing cache and set new values
+        Cache::forget('system_theme');
         Cache::put('system_theme', $config, now()->addYear());
+
+        // Also clear view cache to ensure immediate updates
+        if (function_exists('artisan')) {
+            try {
+                \Artisan::call('view:clear');
+            } catch (\Exception $e) {
+                // Ignore if artisan fails
+            }
+        }
 
         return response()->json([
             'success' => true,
@@ -154,6 +165,22 @@ class DashboardController extends Controller
                 'message' => 'Failed to send test SMS: ' . $e->getMessage()
             ], 500);
         }
+    }
+
+    public function getCurrentTheme()
+    {
+        $theme = Cache::get('system_theme', [
+            'primary_color' => '#6600ff',
+            'secondary_color' => '#4400cc',
+            'accent_color' => '#22c55e',
+            'default_theme' => 'light',
+            'app_name' => 'Chat System',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'theme' => $theme
+        ]);
     }
 
     private function getDashboardStats()

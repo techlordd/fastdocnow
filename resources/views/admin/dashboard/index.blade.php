@@ -5,7 +5,7 @@
 @section('content')
 <style>
     	.text-primary {
-		color: #fff !important;
+		color: var(--primary-color)!important;
 	}
 </style>
 <div class="container-fluid py-4">
@@ -246,9 +246,6 @@
                                 <button onclick="showEmailTest()" class="btn btn-outline-info btn-sm">
                                     <i class="fas fa-envelope me-2"></i>Test Email
                                 </button>
-                                <button onclick="showSMSTest()" class="btn btn-outline-success btn-sm">
-                                    <i class="fas fa-sms me-2"></i>Test SMS
-                                </button>
                                 <a href="{{ route('profile') }}" class="btn btn-outline-warning btn-sm">
                                     <i class="fas fa-cog me-2"></i>Settings
                                 </a>
@@ -267,11 +264,6 @@
                 <li class="nav-item">
                     <a class="nav-link active" data-bs-toggle="pill" href="#email-config" role="tab">
                         <i class="fas fa-envelope me-2"></i>Email Settings
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="pill" href="#sms-config" role="tab">
-                        <i class="fas fa-sms me-2"></i>SMS Settings
                     </a>
                 </li>
                 <li class="nav-item">
@@ -353,69 +345,6 @@
                     </div>
                 </div>
 
-                <!-- SMS Configuration -->
-                <div class="tab-pane fade" id="sms-config" role="tabpanel">
-                    <div class="row">
-                        <div class="col-lg-8">
-                            <form id="smsConfigForm">
-                                <div class="row g-3">
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-medium">SMS Provider</label>
-                                        <select class="form-select" name="sms_provider" required>
-                                            <option value="twilio" {{ ($systemConfig['sms']['sms_provider'] ?? '') === 'twilio' ? 'selected' : '' }}>Twilio</option>
-                                            <option value="vonage" {{ ($systemConfig['sms']['sms_provider'] ?? '') === 'vonage' ? 'selected' : '' }}>Vonage</option>
-                                            <option value="custom" {{ ($systemConfig['sms']['sms_provider'] ?? '') === 'custom' ? 'selected' : '' }}>Custom</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-medium">API Key</label>
-                                        <input type="text" class="form-control" name="sms_api_key"
-                                               placeholder="Enter API key" required>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <label class="form-label fw-medium">API Secret</label>
-                                        <input type="password" class="form-control" name="sms_api_secret"
-                                               placeholder="Enter API secret" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-medium">From Number</label>
-                                        <input type="tel" class="form-control" name="sms_from_number"
-                                               value="{{ $systemConfig['sms']['sms_from_number'] ?? '' }}"
-                                               placeholder="+1234567890" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="form-check mt-4 pt-2">
-                                            <input class="form-check-input" type="checkbox" name="sms_enabled"
-                                                   {{ ($systemConfig['sms']['sms_enabled'] ?? false) ? 'checked' : '' }}>
-                                            <label class="form-check-label fw-medium">
-                                                Enable SMS Notifications
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="mt-4">
-                                    <button type="submit" class="btn btn-primary me-2">
-                                        <span class="button-text">Save SMS Settings</span>
-                                        <span class="button-spinner spinner-border spinner-border-sm ms-2 d-none"></span>
-                                    </button>
-                                    <button type="button" class="btn btn-outline-primary" onclick="showSMSTest()">
-                                        <i class="fas fa-sms me-1"></i>Test Configuration
-                                    </button>
-                                </div>
-                            </form>
-                        </div>
-                        <div class="col-lg-4">
-                            <div class="alert alert-warning">
-                                <h6 class="alert-heading">SMS Provider Setup</h6>
-                                <ul class="mb-0 small">
-                                    <li><strong>Twilio:</strong> Account SID as API Key</li>
-                                    <li><strong>Vonage:</strong> API Key and Secret from dashboard</li>
-                                    <li><strong>Custom:</strong> Configure your own endpoint</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- System Theme -->
                 <div class="tab-pane fade" id="theme-config" role="tabpanel">
@@ -466,13 +395,13 @@
                         </div>
                         <div class="col-lg-4">
                             <div class="alert alert-success">
-                                <h6 class="alert-heading">Appearance Settings</h6>
+                                <h6 class="alert-heading">Global Appearance Settings</h6>
                                 <ul class="mb-0 small">
-                                    <li>Color changes apply immediately</li>
-                                    <li>Affects buttons, links, and UI accents</li>
-                                    <li>Logo will appear in navigation</li>
-                                    <li>Users can customize their accent colors</li>
-                                    <li>Clean light interface for professional use</li>
+                                    <li><strong>Global Impact:</strong> Changes apply to all users</li>
+                                    <li><strong>Primary color:</strong> Affects buttons, links, and UI accents</li>
+                                    <li><strong>Logo:</strong> Will appear in navigation for all users</li>
+                                    <li><strong>Consistent branding:</strong> Maintains uniform appearance across the system</li>
+                                    <li><strong>Professional interface:</strong> Clean light theme for business use</li>
                                 </ul>
                             </div>
                         </div>
@@ -797,12 +726,17 @@ function sendTestSMS() {
 // Form handlers
 document.addEventListener('DOMContentLoaded', function() {
     handleConfigForm('emailConfigForm', '/admin/dashboard/email-config');
-    handleConfigForm('smsConfigForm', '/admin/dashboard/sms-config');
     handleConfigForm('systemThemeForm', '/admin/dashboard/theme-config');
 });
 
 function handleConfigForm(formId, endpoint) {
-    document.getElementById(formId).addEventListener('submit', function(e) {
+    const form = document.getElementById(formId);
+    if (!form) {
+        console.warn(`Form with ID '${formId}' not found`);
+        return;
+    }
+
+    form.addEventListener('submit', function(e) {
         e.preventDefault();
 
         const form = this;
@@ -814,6 +748,8 @@ function handleConfigForm(formId, endpoint) {
         button.disabled = true;
         buttonSpinner.classList.remove('d-none');
 
+        console.log(`Submitting form ${formId} to ${endpoint}`);
+
         fetch(endpoint, {
             method: 'POST',
             body: formData,
@@ -822,24 +758,52 @@ function handleConfigForm(formId, endpoint) {
                 'Accept': 'application/json'
             }
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log('Response data:', data);
             if (data.success) {
                 showSuccessToast(data.message);
 
                 // Update theme color immediately if theme config
                 if (formId === 'systemThemeForm' && data.config) {
+                    console.log('Updating theme with config:', data.config);
                     if (data.config.primary_color) {
-                        window.updateTheme(data.config.primary_color);
+                        // Update current page
+                        if (window.updateTheme) {
+                            window.updateTheme(data.config.primary_color);
+                            console.log('Theme updated to:', data.config.primary_color);
+                        } else {
+                            console.warn('updateTheme function not available');
+                        }
+
+                        // Broadcast change to all tabs/windows via localStorage
+                        localStorage.setItem('theme-updated', Date.now());
+
+                        // Also reload theme for any other pages
+                        if (window.loadCurrentTheme) {
+                            setTimeout(() => {
+                                console.log('Reloading current theme...');
+                                window.loadCurrentTheme();
+                            }, 500);
+                        } else {
+                            console.warn('loadCurrentTheme function not available');
+                        }
                     }
                 }
             } else {
+                console.error('Server returned error:', data.message);
                 showErrorToast(data.message || 'An error occurred');
             }
         })
         .catch(error => {
-            console.error('Error:', error);
-            showErrorToast('An error occurred while saving configuration');
+            console.error('Fetch error:', error);
+            showErrorToast('An error occurred while saving configuration: ' + error.message);
         })
         .finally(() => {
             button.disabled = false;

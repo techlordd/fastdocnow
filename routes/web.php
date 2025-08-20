@@ -9,6 +9,7 @@ use App\Http\Controllers\FriendRequestController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Admin\ContactController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Cache;
 
 // Authentication Routes
 Route::get('/', function () {
@@ -63,7 +64,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/profile/update', [ProfileController::class, 'updateProfile'])->name('profile.update');
     Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
     Route::post('/profile/notifications', [ProfileController::class, 'updateNotifications'])->name('profile.notifications');
-    Route::post('/profile/theme', [ProfileController::class, 'updateTheme'])->name('profile.theme');
     Route::post('/profile/delete', [ProfileController::class, 'deleteAccount'])->name('profile.delete');
 
     // Legacy settings routes (redirect to profile)
@@ -83,8 +83,8 @@ Route::middleware(['auth'])->group(function () {
         // Dashboard
         Route::get('/dashboard', [\App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('dashboard');
         Route::post('/dashboard/email-config', [\App\Http\Controllers\Admin\DashboardController::class, 'updateEmailConfig'])->name('dashboard.email-config');
-        Route::post('/dashboard/sms-config', [\App\Http\Controllers\Admin\DashboardController::class, 'updateSmsConfig'])->name('dashboard.sms-config');
         Route::post('/dashboard/theme-config', [\App\Http\Controllers\Admin\DashboardController::class, 'updateSystemTheme'])->name('dashboard.theme-config');
+        Route::get('/dashboard/current-theme', [\App\Http\Controllers\Admin\DashboardController::class, 'getCurrentTheme'])->name('dashboard.current-theme');
         Route::post('/dashboard/test-email', [\App\Http\Controllers\Admin\DashboardController::class, 'testEmailConfig'])->name('dashboard.test-email');
         Route::post('/dashboard/test-sms', [\App\Http\Controllers\Admin\DashboardController::class, 'testSmsConfig'])->name('dashboard.test-sms');
 
@@ -96,6 +96,7 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/contacts/{contact}/toggle-status', [ContactController::class, 'toggleStatus'])->name('contacts.toggle-status');
         Route::post('/contacts/update-order', [ContactController::class, 'updateOrder'])->name('contacts.update-order');
     });
+
 });
 
 // Debug route for WordPress auth provider (temporary)
@@ -160,4 +161,19 @@ Route::get('/debug/wordpress-users', function () {
 // API Fallback Routes (for mobile/API access)
 Route::get('/api/health', function () {
     return response()->json(['status' => 'ok', 'timestamp' => now()]);
+});
+
+Route::get('/api/theme', function () {
+    $theme = Cache::get('system_theme', [
+        'primary_color' => '#6600ff',
+        'secondary_color' => '#4400cc',
+        'accent_color' => '#22c55e',
+        'default_theme' => 'light',
+        'app_name' => 'Chat System',
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'theme' => $theme
+    ]);
 });

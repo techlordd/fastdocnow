@@ -84,7 +84,6 @@ class ProfileController extends Controller
     {
         $request->validate([
             'notification_email' => 'nullable|email',
-            'notification_phone' => 'nullable|string|max:20',
             'notification_frequency' => 'required|in:instant,hourly,daily',
             'quiet_hours_start' => 'nullable|date_format:H:i',
             'quiet_hours_end' => 'nullable|date_format:H:i',
@@ -94,11 +93,9 @@ class ProfileController extends Controller
 
         $user->update([
             'email_notifications' => $request->has('email_notifications'),
-            'sms_notifications' => $request->has('sms_notifications'),
             'push_notifications' => $request->has('push_notifications'),
             'sound_notifications' => $request->has('sound_notifications'),
             'notification_email' => $request->notification_email ?: $user->email,
-            'notification_phone' => $request->notification_phone,
             'notification_frequency' => $request->notification_frequency,
             'quiet_hours_start' => $request->quiet_hours_start,
             'quiet_hours_end' => $request->quiet_hours_end,
@@ -110,24 +107,6 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function updateTheme(Request $request)
-    {
-        $request->validate([
-            'theme_color' => 'required|string|max:7', // hex color
-        ]);
-
-        $user = Auth::user();
-
-        $user->update([
-            'theme_color' => $request->theme_color,
-        ]);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Accent color updated successfully!',
-            'theme_color' => $request->theme_color
-        ]);
-    }
 
     public function deleteAccount(Request $request)
     {

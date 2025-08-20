@@ -87,19 +87,11 @@
                                     </div>
                                     <div class="nav-content">
                                         <h6 class="nav-title">Notifications</h6>
-                                        <p class="nav-subtitle">Email, SMS and sound alerts</p>
+                                        <p class="nav-subtitle">Email and sound alerts</p>
                                     </div>
                                 </a>
 
-                                <a class="nav-link" data-bs-toggle="pill" href="#appearance-tab" role="tab">
-                                    <div class="nav-icon">
-                                        <i class="fas fa-palette"></i>
-                                    </div>
-                                    <div class="nav-content">
-                                        <h6 class="nav-title">Appearance</h6>
-                                        <p class="nav-subtitle">Theme and customization</p>
-                                    </div>
-                                </a>
+
 
                                 <a class="nav-link text-danger" data-bs-toggle="pill" href="#danger-tab" role="tab">
                                     <div class="nav-icon">
@@ -217,25 +209,7 @@
                                 </div>
                             </div>
 
-                            <!-- Two-Factor Authentication -->
-                            <div class="card border-0 shadow-sm mt-4">
-                                <div class="card-header bg-transparent border-0 pb-0">
-                                    <h5 class="card-title fw-bold mb-1">Two-Factor Authentication</h5>
-                                    <p class="text-muted small mb-0">Add an extra layer of security to your account</p>
-                                </div>
-                                <div class="card-body">
-                                    <div class="d-flex align-items-center justify-content-between">
-                                        <div>
-                                            <h6 class="mb-1">SMS Authentication</h6>
-                                            <p class="text-muted small mb-0">Receive verification codes via SMS</p>
-                                        </div>
-                                        <div class="form-check form-switch">
-                                            <input class="form-check-input" type="checkbox" id="sms2fa">
-                                            <label class="form-check-label" for="sms2fa">Enable</label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+
                         </div>
 
                         <!-- Notifications -->
@@ -264,18 +238,7 @@
                                                     </div>
                                                 </div>
 
-                                                <div class="notification-item">
-                                                    <div class="form-check form-switch">
-                                                        <input class="form-check-input" type="checkbox" name="sms_notifications"
-                                                            {{ $user->sms_notifications ? 'checked' : '' }} id="sms_notifications">
-                                                        <label class="form-check-label" for="sms_notifications">
-                                                            <div class="notification-content">
-                                                                <div class="notification-title">SMS Notifications</div>
-                                                                <div class="notification-subtitle">Receive urgent alerts via SMS</div>
-                                                            </div>
-                                                        </label>
-                                                    </div>
-                                                </div>
+
 
                                                 <div class="notification-item">
                                                     <div class="form-check form-switch">
@@ -314,12 +277,7 @@
                                                     <div class="form-text">Leave empty to use your primary email</div>
                                                 </div>
 
-                                                <div class="mb-3">
-                                                    <label class="form-label fw-medium">SMS Phone Number</label>
-                                                    <input type="tel" class="form-control" name="notification_phone"
-                                                        value="{{ $user->notification_phone }}">
-                                                    <div class="form-text">Include country code (e.g., +1234567890)</div>
-                                                </div>
+
 
                                                 <div class="mb-3">
                                                     <label class="form-label fw-medium">Notification Frequency</label>
@@ -357,68 +315,7 @@
                             </div>
                         </div>
 
-                        <!-- Appearance -->
-                        <div class="tab-pane fade" id="appearance-tab" role="tabpanel">
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-header bg-transparent border-0 pb-0">
-                                    <h5 class="card-title fw-bold mb-1">Appearance Settings</h5>
-                                    <p class="text-muted small mb-0">Customize your accent color and interface preferences</p>
-                                </div>
-                                <div class="card-body">
-                                    <form id="themeForm">
-                                        <div class="row g-4">
-                                            <div class="col-12">
-                                                <label class="form-label fw-medium">Accent Color</label>
-                                                <p class="text-muted small mb-3">Choose your preferred accent color for buttons, links, and highlights</p>
-                                                <div class="color-picker-container">
-                                                    <input type="color" class="form-control form-control-color color-input" name="theme_color"
-                                                        value="{{ $user->theme_color ?: '#6600ff' }}" id="themeColorPicker">
-                                                    <div class="color-presets mt-3">
-                                                        <button type="button" class="color-preset active" data-color="#6600ff" style="background: #6600ff" title="Purple"></button>
-                                                        <button type="button" class="color-preset" data-color="#dc3545" style="background: #dc3545" title="Red"></button>
-                                                        <button type="button" class="color-preset" data-color="#198754" style="background: #198754" title="Green"></button>
-                                                        <button type="button" class="color-preset" data-color="#fd7e14" style="background: #fd7e14" title="Orange"></button>
-                                                        <button type="button" class="color-preset" data-color="#20c997" style="background: #20c997" title="Teal"></button>
-                                                        <button type="button" class="color-preset" data-color="#6f42c1" style="background: #6f42c1" title="Violet"></button>
-                                                        <button type="button" class="color-preset" data-color="#0d6efd" style="background: #0d6efd" title="Blue"></button>
-                                                        <button type="button" class="color-preset" data-color="#e91e63" style="background: #e91e63" title="Pink"></button>
-                                                    </div>
-                                                    <div class="form-text mt-2">Click a preset or use the color picker above</div>
-                                                </div>
-                                            </div>
 
-                                            <div class="col-12">
-                                                <div class="color-preview-section">
-                                                    <label class="form-label fw-medium">Preview</label>
-                                                    <div class="color-preview-card">
-                                                        <div class="preview-header">
-                                                            <h6 class="mb-0">Sample Interface</h6>
-                                                            <span class="badge bg-primary">Primary</span>
-                                                        </div>
-                                                        <div class="preview-content">
-                                                            <button class="btn btn-primary btn-sm">Primary Button</button>
-                                                            <button class="btn btn-outline-primary btn-sm ms-2">Outline Button</button>
-                                                            <div class="preview-link mt-2">
-                                                                <a href="#" class="text-primary fw-medium">Sample Link</a>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="mt-4">
-                                            <button type="submit" class="btn btn-primary">
-                                                <span class="button-text">Update Appearance</span>
-                                                <span class="button-spinner spinner-border spinner-border-sm ms-2 d-none"></span>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-secondary ms-2" onclick="previewTheme()">
-                                                <i class="fas fa-eye me-1"></i>Preview Changes
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
 
                         <!-- Danger Zone -->
                         <div class="tab-pane fade" id="danger-tab" role="tabpanel">
@@ -850,11 +747,6 @@
         handleForm('profileForm', '/profile/update');
         handleForm('passwordForm', '/profile/password');
         handleForm('notificationsForm', '/profile/notifications');
-        handleForm('themeForm', '/profile/theme', function(data) {
-            if (data.theme_color) {
-                window.updateTheme(data.theme_color);
-            }
-        });
         handleForm('deleteForm', '/profile/delete', function(data) {
             if (data.redirect) {
                 window.location.href = data.redirect;
