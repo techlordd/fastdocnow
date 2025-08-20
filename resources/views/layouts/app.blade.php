@@ -165,8 +165,15 @@ use Illuminate\Support\Facades\Cache;
     </style>
 
     <!-- Favicon -->
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('images/favicon-16x16.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('images/apple-touch-icon.png') }}">
+        <!-- Favicon for modern browsers -->
+        <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+
+        <!-- Fallback for older browsers -->
+        <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon.png') }}">
+
+        <!-- Apple Touch Icon -->
+        <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+
     <meta name="theme-color" content="{{ Cache::get('system_theme', ['primary_color' => '#6600ff'])['primary_color'] }}">
 
     @livewireStyles

@@ -40,39 +40,39 @@ function initializeChat() {
     initializeVoiceRecording();
 }
 
+// Listen for conversation changes
+document.addEventListener('DOMContentLoaded', function () {
+    const sidebar = document.querySelector('.chat-sidebar .chat-header');
+    const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
+    const mainChatWrapper = document.querySelector('.main-chat-wrapper');
+
+    if (sidebarToggleBtn) {
+        sidebarToggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            console.log('here');
+            mainChatWrapper.classList.toggle('sidebar-open');
+        });
+    }
+
+    // Close sidebar when a conversation is selected on mobile
+    if (window.Livewire) {
+        window.Livewire.on('conversationSelected', () => {
+            if (window.innerWidth < 991) {
+                sidebar.classList.remove('open');
+                mainChatWrapper.classList.remove('sidebar-open');
+            }
+            setTimeout(() => {
+                initializeEmojiPicker();
+            }, 100);
+        });
+    }
+});
 function setupPusherConnection() {
     if (!window.Echo) {
         console.warn('🟡 Echo not available - real-time messaging disabled');
         return;
     }
 
-    // Listen for conversation changes
-    document.addEventListener('DOMContentLoaded', function () {
-        const sidebar = document.querySelector('.chat-sidebar .chat-header');
-        const sidebarToggleBtn = document.getElementById('sidebar-toggle-btn');
-        const mainChatWrapper = document.querySelector('.main-chat-wrapper');
-
-        if (sidebarToggleBtn) {
-            sidebarToggleBtn.addEventListener('click', () => {
-                sidebar.classList.toggle('open');
-                console.log('here');
-                mainChatWrapper.classList.toggle('sidebar-open');
-            });
-        }
-
-        // Close sidebar when a conversation is selected on mobile
-        if (window.Livewire) {
-            window.Livewire.on('conversationSelected', () => {
-                if (window.innerWidth < 991) {
-                    sidebar.classList.remove('open');
-                    mainChatWrapper.classList.remove('sidebar-open');
-                }
-                setTimeout(() => {
-                    initializeEmojiPicker();
-                }, 100);
-            });
-        }
-    });
 
     document.addEventListener('livewire:navigated', function() {
         setTimeout(() => {
