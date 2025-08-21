@@ -56,9 +56,9 @@
                 <span class="online-status" id="user-status-{{ $otherUser['id'] }}">
                     <i class="fas fa-circle me-1"></i>
                     @if($otherUser['is_online'])
-                    Online
+                    <span>Online</span>
                     @else
-                    Last seen {{ \Carbon\Carbon::parse($otherUser['last_seen_at'])->diffForHumans() }}
+                    <span>Last seen {{ \Carbon\Carbon::parse($otherUser['last_seen_at'])->diffForHumans() }}</span>
                     @endif
                 </span>
             </p>
