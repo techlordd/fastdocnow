@@ -166,6 +166,14 @@ use Illuminate\Support\Facades\Cache;
                 width: fit-content;
             }
         }
+
+        @media screen and (max-width:575px) {
+            .alert {
+                width: fit-content;
+                margin-left: auto !important;
+                padding-right: 50px !important;
+            }
+        }
     </style>
 
     <!-- Favicon -->
