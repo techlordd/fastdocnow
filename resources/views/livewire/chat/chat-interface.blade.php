@@ -863,6 +863,7 @@
             transform: translateY(10px);
             transition: opacity 0.2s ease, transform 0.2s ease;
             pointer-events: none;
+            width: fit-content;
         }
 
         .emoji-picker-container.show {
