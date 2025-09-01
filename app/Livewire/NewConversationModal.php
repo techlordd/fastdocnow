@@ -42,6 +42,12 @@ class NewConversationModal extends Component
             return;
         }
 
+        // Prevent staff from creating conversations with contacts assigned to themselves
+        if (Auth::id() === $contact->assigned_user_id) {
+            $this->addError('selectedContact', 'You cannot start a conversation with a contact assigned to you.');
+            return;
+        }
+
         // Check if conversation already exists
         $existingConversation = Auth::user()->conversations()
             ->where('contact_id', $this->selectedContact)

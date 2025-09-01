@@ -12,7 +12,11 @@
                 <i class="fas fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
             </div>
         </div>
-
+        @error('selectedContact')
+        <div class="alert alert-danger mx-4 mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>{{ $message }}
+        </div>
+        @enderror
         <!-- Contacts Grid -->
         <div class="contacts-grid p-4" style="max-height: calc(100vh - 260px); overflow-y: auto;">
             @if(count($this->availableContacts) > 0)
@@ -21,7 +25,6 @@
                 <div class="col-md-6 col-lg-4" wire:key="contact-{{ $contact['id'] }}" >
                     <div class="contact-card {{ $selectedContact == $contact['id'] ? 'selected' : '' }}"
                         wire:click="selectContact({{ $contact['id'] }})">
-
                         <!-- Contact Avatar with Type Icon -->
                         <div class="contact-avatar-wrapper mb-3">
                             <div class="contact-avatar avatar-placeholder">
@@ -122,12 +125,6 @@
             </div>
             @endif
         </div>
-
-        @error('selectedContact')
-        <div class="alert alert-danger mx-4 mb-0">
-            <i class="fas fa-exclamation-triangle me-2"></i>{{ $message }}
-        </div>
-        @enderror
     </div>
 
     <style>

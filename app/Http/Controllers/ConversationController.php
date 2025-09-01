@@ -28,10 +28,19 @@ class ConversationController extends Controller
             'type' => 'required|in:private,group',
             'participants' => 'required|array|min:1',
             'title' => 'nullable|string|max:100',
+            'contact_id' => 'nullable|exists:contacts,id',
         ]);
 
         $user = Auth::user();
         $participantIds = $request->participants;
+
+        // If this is a contact-based conversation, prevent staff from creating conversations with their own assigned contacts
+        if ($request->contact_id) {
+            $contact = \App\Models\Contact::find($request->contact_id);
+            if ($contact && $contact->assigned_user_id === $user->id) {
+                return response()->json(['error' => 'You cannot start a conversation with a contact assigned to you.'], 422);
+            }
+        }
 
         // For private chats, check if conversation already exists
         if ($request->type === 'private' && count($participantIds) === 1) {
@@ -67,14 +76,13 @@ class ConversationController extends Controller
             ]);
 
             // Add participants
-            $allParticipants = array_unique(array_merge($participantIds, [$user->id]));
+            $allParticipants = array_unique(array_merge((array) $participantIds, [$user->id]));
 
             foreach ($allParticipants as $participantId) {
-                $conversation->participants()->create([
-                    'user_id' => $participantId,
-                    'joined_at' => now(),
-                    'role' => $participantId === $user->id ? 'admin' : 'member',
-                ]);
+                $participant = User::find($participantId);
+                if ($participant) {
+                    $conversation->addParticipant($participant, $participantId === $user->id ? 'admin' : 'member');
+                }
             }
 
             DB::commit();
