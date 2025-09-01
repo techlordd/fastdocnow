@@ -68,6 +68,10 @@ use Illuminate\Support\Facades\Cache;
             background-color: var(--primary-color) !important;
         }
 
+        .bg-primary.text-primary, .bg-primary .text-primary {
+            color: #fff !important;
+        }
+
         .border-primary {
             border-color: var(--primary-color) !important;
         }

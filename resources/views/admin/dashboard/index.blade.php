@@ -5,8 +5,12 @@
 @section('content')
 <style>
     	.text-primary {
-		color: var(--primary-color)!important;
-	}
+            color: var(--primary-color)!important;
+        }
+        .scroll_table {
+            max-height: 400px;
+            overflow-y: auto;
+        }
 </style>
 <div class="container-fluid py-4">
     <!-- Page Header -->
@@ -129,19 +133,9 @@
                             <h5 class="card-title fw-bold mb-1">Recent Activity</h5>
                             <p class="text-muted small mb-0">Latest messages and interactions</p>
                         </div>
-                        <div class="dropdown">
-                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
-                                <i class="fas fa-filter me-1"></i>Filter
-                            </button>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-comments me-2"></i>All Messages</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-text-height me-2"></i>Text Only</a></li>
-                                <li><a class="dropdown-item" href="#"><i class="fas fa-paperclip me-2"></i>With Attachments</a></li>
-                            </ul>
-                        </div>
                     </div>
                 </div>
-                <div class="card-body">
+                <div class="card-body scroll_table">
                     @if(count($recentMessages) > 0)
                         <div class="activity-list">
                             @foreach($recentMessages as $message)
