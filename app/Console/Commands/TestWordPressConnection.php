@@ -137,8 +137,8 @@ class TestWordPressConnection extends Command
 
             foreach ($tables as $table) {
                 $exists = DB::connection($connection)
-                    ->select("SHOW TABLES LIKE ?", [$table]);
-                
+                    ->select("SHOW TABLES LIKE '" . addslashes($table) . "'");
+
                 if (empty($exists)) {
                     if ($this->option('verbose')) {
                         $this->error("Table {$table} does not exist");
@@ -156,6 +156,7 @@ class TestWordPressConnection extends Command
         }
     }
 
+
     /**
      * Test Corcel integration.
      */
@@ -164,10 +165,10 @@ class TestWordPressConnection extends Command
         try {
             // Test basic Corcel functionality
             $userCount = WordPressUser::count();
-            
+
             // Test if we can get a user with meta
             $user = WordPressUser::with('meta')->first();
-            
+
             $result = [
                 'success' => true,
                 'user_count' => $userCount,
@@ -178,6 +179,8 @@ class TestWordPressConnection extends Command
                     'display_name' => $user->display_name,
                 ] : null
             ];
+
+            dd($result);
 
             if ($verbose && $user) {
                 $this->info("   Sample user: {$user->display_name} ({$user->user_email})");
@@ -199,23 +202,23 @@ class TestWordPressConnection extends Command
     {
         try {
             $totalUsers = WordPressUser::count();
-            
+
             // Get users with different capabilities
-            $adminUsers = WordPressUser::whereHas('meta', function($query) {
+            $adminUsers = WordPressUser::whereHas('meta', function ($query) {
                 $prefix = config('corcel.prefix', 'wp_');
                 $query->where('meta_key', $prefix . 'capabilities')
-                      ->where('meta_value', 'like', '%administrator%');
+                    ->where('meta_value', 'like', '%administrator%');
             })->count();
 
             // Test user capabilities
             $sampleUser = WordPressUser::first();
             $capabilities = null;
             $canAccess = false;
-            
+
             if ($sampleUser) {
                 $capabilities = $sampleUser->getCapabilities();
                 $canAccess = $sampleUser->canAccessChat();
-                
+
                 if ($verbose) {
                     $this->info("   Sample user capabilities: " . implode(', ', $capabilities));
                     $this->info("   Can access chat: " . ($canAccess ? 'Yes' : 'No'));
@@ -264,7 +267,7 @@ class TestWordPressConnection extends Command
             $this->line("   Role: {$sample['role']}");
             $this->line("   Is Admin: " . ($sample['is_admin'] ? 'Yes' : 'No'));
             $this->line("   Can Access Chat: " . ($sample['can_access_chat'] ? 'Yes' : 'No'));
-            
+
             if (!empty($sample['capabilities'])) {
                 $this->line("   Capabilities: " . implode(', ', $sample['capabilities']));
             }
@@ -275,7 +278,7 @@ class TestWordPressConnection extends Command
         $this->line("   WordPress Enabled: " . (config('wordpress.enabled', false) ? 'Yes' : 'No'));
         $this->line("   Auto Sync Users: " . (config('wordpress.sync.auto_sync', true) ? 'Yes' : 'No'));
         $this->line("   Sync Avatars: " . (config('wordpress.sync.sync_avatars', true) ? 'Yes' : 'No'));
-        
+
         if (!config('wordpress.enabled', false)) {
             $this->newLine();
             $this->warn('⚠️  WordPress integration is disabled. Set WP_ENABLED=true in your .env file to enable it.');
