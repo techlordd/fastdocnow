@@ -47,15 +47,9 @@ window.axios.interceptors.response.use(
 
         // Handle common errors
         if (error.response?.status === 401) {
-            // Only redirect to login for non-API requests or critical failures
-            if (!error.config?.url?.includes('/api/user/presence')) {
-                window.location.href = '/login';
-            }
+            console.warn('Unauthorized request:', error.config?.url, error.response?.data);
         } else if (error.response?.status === 419) {
-            // CSRF token mismatch - only reload for non-presence API calls
-            if (!error.config?.url?.includes('/api/user/presence')) {
-                window.location.reload();
-            }
+            console.warn('CSRF token mismatch:', error.config?.url, error.response?.data);
         } else if (error.response?.status >= 500) {
             console.error('Server error:', error.response);
         }

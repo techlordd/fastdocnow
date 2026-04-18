@@ -7,12 +7,12 @@
                 <input type="text"
                     id="contactSearch"
                     wire:model.live="searchTerm"
-                    placeholder="Search contacts by name or description..."
+                    placeholder="Search patients or contacts..."
                     class="form-control form-control-lg ps-5">
                 <i class="fas fa-search position-absolute top-50 start-0 translate-middle-y ms-3 text-muted"></i>
             </div>
         </div>
-        @error('selectedContact')
+        @error('selectedRecipient')
         <div class="alert alert-danger mx-4 mb-0">
             <i class="fas fa-exclamation-triangle me-2"></i>{{ $message }}
         </div>
@@ -22,9 +22,10 @@
             @if(count($this->availableContacts) > 0)
             <div class="row g-3">
                 @foreach($this->availableContacts as $contact)
-                <div class="col-md-6 col-lg-4" wire:key="contact-{{ $contact['id'] }}" >
-                    <div class="contact-card {{ $selectedContact == $contact['id'] ? 'selected' : '' }}"
-                        wire:click="selectContact({{ $contact['id'] }})">
+                @php($recipientKey = $contact['record_type'] . ':' . $contact['id'])
+                <div class="col-md-6 col-lg-4" wire:key="{{ $contact['record_type'] }}-{{ $contact['id'] }}" >
+                    <div class="contact-card {{ $selectedRecipient == $recipientKey ? 'selected' : '' }}"
+                        wire:click="selectRecipient('{{ $contact['record_type'] }}', '{{ $contact['id'] }}')">
                         <!-- Contact Avatar with Type Icon -->
                         <div class="contact-avatar-wrapper mb-3">
                             <div class="contact-avatar avatar-placeholder">
@@ -32,13 +33,15 @@
                                 <i class="fas fa-user-md"></i>
                                 @elseif($contact['type'] === 'support')
                                 <i class="fas fa-headset"></i>
+                                @elseif($contact['type'] === 'patient')
+                                <i class="fas fa-user"></i>
                                 @else
                                 <i class="fas fa-user"></i>
                                 @endif
                             </div>
 
                             <!-- Selection Indicator -->
-                            @if($selectedContact == $contact['id'])
+                            @if($selectedRecipient == $recipientKey)
                             <div class="selection-indicator">
                                 <i class="fas fa-check"></i>
                             </div>
@@ -56,6 +59,10 @@
                                 @elseif($contact['type'] === 'support')
                                 <span class="badge bg-success">
                                     <i class="fas fa-headset text-white me-1"></i>Support
+                                </span>
+                                @elseif($contact['type'] === 'patient')
+                                <span class="badge bg-info">
+                                    <i class="fas fa-user text-white me-1"></i>Patient
                                 </span>
                                 @else
                                 <span class="badge bg-secondary">
@@ -88,6 +95,13 @@
                                     @endif
                                 </div>
                             </div>
+                            @elseif($contact['record_type'] === 'patient')
+                            <div class="assigned-user mt-3">
+                                <div class="assigned-user-info">
+                                    <small class="text-muted d-block">Patient email:</small>
+                                    <strong class="assigned-user-name">{{ $contact['description'] }}</strong>
+                                </div>
+                            </div>
                             @else
                             <div class="text-warning mt-3">
                                 <small><i class="fas fa-exclamation-triangle me-1"></i>No staff assigned</small>
@@ -111,15 +125,15 @@
                     @if($searchTerm)
                     No contacts found
                     @else
-                    No contacts available
+                    No recipients available
                     @endif
                 </h5>
                 <p class="text-muted">
                     @if($searchTerm)
                     Try a different search term or check your spelling.
                     @else
-                    No contacts are available for conversations.<br>
-                    <small>Contact your administrator to set up support contacts.</small>
+                    No patients or contacts are available for conversations.<br>
+                    <small>Contact your administrator to set up contacts or verify WordPress patient sync.</small>
                     @endif
                 </p>
             </div>

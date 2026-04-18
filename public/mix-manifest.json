@@ -1,10 +1,10 @@
 {
-    "/js/app.js": "/js/app.js?id=d3923f5230a63282dd9c1af262b5d860",
-    "/js/chat.js": "/js/chat.js?id=5305988180f3d1c7e3254a94a7d3fe35",
-    "/js/voice-recorder.js": "/js/voice-recorder.js?id=dfc0078e3a228184444e98459589b077",
-    "/js/emoji-picker-mart.js": "/js/emoji-picker-mart.js?id=c1f84a00f1de75c5c57eb2c10b42e649",
-    "/js/select2.min.js": "/js/select2.min.js?id=ad8d98c780ddb703a940c587c419b1bd",
-    "/css/emoji-picker.css": "/css/emoji-picker.css?id=b9ffc4f79d6e07917e8ee989a2a1155d",
-    "/css/app.css": "/css/app.css?id=1c1981e0bc8b40bc7e32b49fc2cccd72",
-    "/css/select2.min.css": "/css/select2.min.css?id=e71c39430469a3eea74514a2b48f6536"
+    "/js/app.js": "/js/app.js",
+    "/js/chat.js": "/js/chat.js",
+    "/js/voice-recorder.js": "/js/voice-recorder.js",
+    "/js/emoji-picker-mart.js": "/js/emoji-picker-mart.js",
+    "/js/select2.min.js": "/js/select2.min.js",
+    "/css/emoji-picker.css": "/css/emoji-picker.css",
+    "/css/app.css": "/css/app.css",
+    "/css/select2.min.css": "/css/select2.min.css"
 }

@@ -142,15 +142,24 @@
     }
 
     // Form submission handling
-    document.querySelector('.auth-form').addEventListener('submit', function() {
-        const submitBtn = document.querySelector('.auth-submit-btn');
-        const btnText = submitBtn.querySelector('.btn-text');
-        const btnLoader = submitBtn.querySelector('.btn-loader');
+    const authForm = document.querySelector('.auth-form');
+    if (authForm) {
+        authForm.addEventListener('submit', function() {
+            const submitBtn = document.querySelector('.auth-submit-btn');
+            const btnText = submitBtn ? submitBtn.querySelector('.btn-text') : null;
+            const btnLoader = submitBtn ? submitBtn.querySelector('.btn-loader') : null;
 
-        submitBtn.disabled = true;
-        btnText.style.opacity = '0';
-        btnLoader.classList.remove('d-none');
-    });
+            if (submitBtn) {
+                submitBtn.disabled = true;
+            }
+            if (btnText) {
+                btnText.style.opacity = '0';
+            }
+            if (btnLoader) {
+                btnLoader.classList.remove('d-none');
+            }
+        });
+    }
 
     // Social login handlers
     document.querySelectorAll('.social-btn').forEach(btn => {

@@ -18,7 +18,7 @@ class AuthController extends Controller
     public function showLogin()
     {
         if (Auth::check()) {
-            return redirect()->route('chat.index');
+            return redirect('/chat');
         }
         
         return view('auth.login');
@@ -59,7 +59,7 @@ class AuthController extends Controller
                 'wp_user_id' => Auth::user()->wp_user_id ?? 'none'
             ]);
 
-            return redirect()->intended(route('chat.index'));
+            return redirect()->intended('/chat');
         }
 
         // If WordPress is enabled and Laravel auth failed, try WordPress authentication
@@ -81,7 +81,7 @@ class AuthController extends Controller
                         'wp_user_id' => Auth::user()->wp_user_id ?? 'none'
                     ]);
 
-                    return redirect()->intended(route('chat.index'))
+                    return redirect()->intended('/chat')
                         ->with('success', 'Welcome! You have been authenticated via WordPress.');
                 }
             } catch (\Exception $e) {
@@ -112,7 +112,7 @@ class AuthController extends Controller
     public function showSignup()
     {
         if (Auth::check()) {
-            return redirect()->route('chat.index');
+            return redirect('/chat');
         }
         
         return view('auth.signup');
@@ -145,7 +145,7 @@ class AuthController extends Controller
 
         Auth::login($user);
 
-        return redirect()->route('chat.index')->with('success', 'Account created successfully!');
+        return redirect('/chat')->with('success', 'Account created successfully!');
     }
 
     public function logout(Request $request)
@@ -159,7 +159,7 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        return redirect('/login');
     }
 
     public function showForgotPassword()
@@ -204,7 +204,7 @@ class AuthController extends Controller
         );
 
         return $status === Password::PASSWORD_RESET
-            ? redirect()->route('login')->with('status', __($status))
+            ? redirect('/login')->with('status', __($status))
             : back()->withErrors(['email' => [__($status)]]);
     }
 }

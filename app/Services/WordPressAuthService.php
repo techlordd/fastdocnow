@@ -290,6 +290,13 @@ class WordPressAuthService
             return false;
         }
 
+        // WordPress 6.8+ format: "$wp$" + bcrypt hash over an HMAC-SHA384 pre-hash.
+        if (str_starts_with($hash, '$wp$')) {
+            $bcryptHash = substr($hash, 3);
+            $preHashedPassword = base64_encode(hash_hmac('sha384', $password, 'wp-sha384', true));
+            return password_verify($preHashedPassword, $bcryptHash);
+        }
+
         // Check if it's a standard WordPress hash
         if (strlen($hash) === 34 && substr($hash, 0, 3) === '$P$') {
             return $this->checkPhpassHash($password, $hash);

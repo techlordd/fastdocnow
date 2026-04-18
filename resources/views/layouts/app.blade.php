@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\Cache;
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
     <!-- Custom App CSS -->
-    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}?v={{ filemtime(public_path('css/app.css')) }}">
 
     <style id="dynamic-theme">
         :root {
@@ -361,8 +361,8 @@ use Illuminate\Support\Facades\Cache;
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <!-- Application JavaScript -->
-    <script src="{{ asset('js/app.js') }}"></script>
-    <script src="{{ asset('js/chat.js') }}"></script>
+    <script src="{{ asset('js/app.js') }}?v={{ filemtime(public_path('js/app.js')) }}"></script>
+    <script src="{{ asset('js/chat.js') }}?v={{ filemtime(public_path('js/chat.js')) }}"></script>
 
     <!-- Real-time connection status -->
     <div id="connectionStatus" class="position-fixed bottom-0 start-0 m-3 d-none" style="z-index: 1050;">
@@ -381,7 +381,7 @@ use Illuminate\Support\Facades\Cache;
         window.App = {
             user: @json(auth()->user()),
             csrfToken: '{{ csrf_token() }}',
-            baseUrl: '{{ url(' / ') }}',
+            baseUrl: '{{ url('/') }}',
         };
 
         // Theme color management (light theme only)

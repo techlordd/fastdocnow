@@ -5,6 +5,7 @@ namespace App\Livewire\Chat;
 use App\Models\Contact;
 use App\Models\Conversation;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Pulse\Users;
 use Livewire\Attributes\On;
@@ -31,17 +32,19 @@ class ConversationSidebar extends Component
             ->ordered()
             ->get()
             ->map(function ($contact) {
+                $assignedUser = $contact->assignedUser;
+                $lastSeenAt = $assignedUser ? Carbon::make($assignedUser->last_seen_at) : null;
+
                 return [
                     'id' => $contact->id,
                     'name' => $contact->name,
                     'description' => $contact->description,
                     'type' => $contact->type,
-                    'assigned_user' => $contact->assignedUser ? [
-                        'id' => $contact->assignedUser->id,
-                        'name' => $contact->assignedUser->first_name . ' ' . $contact->assignedUser->last_name,
-                        'last_seen_at' => $contact->assignedUser->last_seen_at,
-                        'is_online' => $contact->assignedUser->last_seen_at &&
-                            $contact->assignedUser->last_seen_at->gt(now()->subMinutes(2)),
+                    'assigned_user' => $assignedUser ? [
+                        'id' => $assignedUser->id,
+                        'name' => $assignedUser->first_name . ' ' . $assignedUser->last_name,
+                        'last_seen_at' => $lastSeenAt,
+                        'is_online' => $lastSeenAt ? $lastSeenAt->greaterThan(now()->subMinutes(2)) : false,
                     ] : null,
                 ];
             })->toArray();
